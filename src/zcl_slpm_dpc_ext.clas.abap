@@ -8,6 +8,8 @@ class zcl_slpm_dpc_ext definition
     methods /iwbep/if_mgw_appl_srv_runtime~create_stream redefinition.
     methods /iwbep/if_mgw_appl_srv_runtime~delete_stream redefinition.
   protected section.
+
+    methods priorityset_get_entityset redefinition.
     methods problemset_create_entity redefinition.
     methods productset_get_entity redefinition.
     methods productset_get_entityset redefinition.
@@ -19,35 +21,30 @@ class zcl_slpm_dpc_ext definition
     methods problemset_get_entity redefinition.
     methods problemset_get_entityset redefinition.
 
-
   private section.
     class-data: mv_exception_postfix type string,
                 mv_exception_text    type bapi_msg.
 
-    methods set_exception_response
+    methods: set_exception_response
       importing
         ip_exception_text type bapi_msg
       returning
-        value(ep_msg)     type ref to /iwbep/if_message_container .
-
-    methods set_exception_text
-      importing
-        ip_exception_text type string.
-
-    methods raise_exception
-      importing
-        ip_exception_text type string
-      raising
-        /iwbep/cx_mgw_busi_exception.
-
-    methods get_attachment_keys
-      importing
-        it_key_tab type /iwbep/t_mgw_name_value_pair
-      exporting
-        ep_guid    type crmt_object_guid
-        ep_loio    type string
-        ep_phio    type string.
-
+        value(ep_msg)     type ref to /iwbep/if_message_container,
+      set_exception_text
+        importing
+          ip_exception_text type string,
+      raise_exception
+        importing
+          ip_exception_text type string
+        raising
+          /iwbep/cx_mgw_busi_exception,
+      get_attachment_keys
+        importing
+          it_key_tab type /iwbep/t_mgw_name_value_pair
+        exporting
+          ep_guid    type crmt_object_guid
+          ep_loio    type string
+          ep_phio    type string.
 
 endclass.
 
@@ -90,15 +87,15 @@ class zcl_slpm_dpc_ext implementation.
 
   method problemset_get_entityset.
 
-    data: lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy,
+    data: lo_slpm_data_provider type ref to zif_slpm_data_manager,
           lv_exception_text     type bapi_msg.
 
     try.
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        et_entityset = lo_slpm_data_provider->zif_slpm_data_provider~get_problems_list(  ).
+        et_entityset = lo_slpm_data_provider->get_problems_list(  ).
 
-      catch zcx_slpm_data_provider_exc zcx_crm_order_api_exc into data(lcx_process_exception).
+      catch zcx_slpm_data_manager_exc zcx_crm_order_api_exc  zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -110,7 +107,7 @@ class zcl_slpm_dpc_ext implementation.
   method problemset_get_entity.
 
     data: lv_guid               type crmt_object_guid,
-          lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy.
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     try.
 
@@ -127,11 +124,11 @@ class zcl_slpm_dpc_ext implementation.
 
         endif.
 
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        er_entity = lo_slpm_data_provider->zif_slpm_data_provider~get_problem( lv_guid ).
+        er_entity = lo_slpm_data_provider->get_problem( lv_guid ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -143,7 +140,7 @@ class zcl_slpm_dpc_ext implementation.
     data:
       lt_texts              type zcl_slpm_mpc=>tt_text,
       ls_texts              like line of et_entityset,
-      lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy,
+      lo_slpm_data_provider type ref to zif_slpm_data_manager,
       lv_guid               type crmt_object_guid.
 
     try.
@@ -161,13 +158,13 @@ class zcl_slpm_dpc_ext implementation.
 
         endif.
 
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        lo_slpm_data_provider->zif_slpm_data_provider~get_texts(
+        lo_slpm_data_provider->get_texts(
             exporting ip_guid = lv_guid
             importing et_texts = lt_texts ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -186,9 +183,7 @@ class zcl_slpm_dpc_ext implementation.
   method attachmentset_get_entityset.
 
     data: lv_guid               type crmt_object_guid,
-          lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy.
-
-
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
 
     read table it_key_tab into data(ls_key_tab) with key name = 'Guid'.
@@ -199,25 +194,19 @@ class zcl_slpm_dpc_ext implementation.
 
       try.
 
-*          raise exception type zcx_slpm_odata_exc
-*            exporting
-*              textid    = zcx_slpm_odata_exc=>guid_not_provided_for_entity
-*              mv_entity = iv_entity_name.
+          lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-          create object lo_slpm_data_provider.
-
-          lo_slpm_data_provider->zif_slpm_data_provider~get_attachments_list( exporting
+          lo_slpm_data_provider->get_attachments_list( exporting
               ip_guid = lv_guid
               importing
               et_attachments_list = et_entityset ).
 
-        catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+        catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
           raise_exception( lcx_process_exception->get_text(  ) ).
 
       endtry.
 
     endif.
-
 
   endmethod.
 
@@ -226,7 +215,7 @@ class zcl_slpm_dpc_ext implementation.
     data: lv_guid               type crmt_object_guid,
           lv_loio               type string,
           lv_phio               type string,
-          lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy.
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     me->get_attachment_keys(
      exporting
@@ -242,11 +231,11 @@ class zcl_slpm_dpc_ext implementation.
 
     try.
 
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        er_entity = lo_slpm_data_provider->zif_slpm_data_provider~get_attachment( exporting ip_guid = lv_guid ip_loio = lv_loio ip_phio = lv_phio ).
+        er_entity = lo_slpm_data_provider->get_attachment( exporting ip_guid = lv_guid ip_loio = lv_loio ip_phio = lv_phio ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -263,7 +252,7 @@ class zcl_slpm_dpc_ext implementation.
           ls_stream             type  /iwbep/if_mgw_appl_types=>ty_s_media_resource,
           ls_attachment         type aic_s_attachment_incdnt_odata,
           lv_filename           type string,
-          lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy,
+          lo_slpm_data_provider type ref to zif_slpm_data_manager,
           lv_guid               type crmt_object_guid,
           lv_loio               type string,
           lv_phio               type string.
@@ -283,9 +272,9 @@ class zcl_slpm_dpc_ext implementation.
 
     try.
 
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        lo_slpm_data_provider->zif_slpm_data_provider~get_attachment_content(
+        lo_slpm_data_provider->get_attachment_content(
             exporting
                 ip_guid = lv_guid
                 ip_loio = lv_loio
@@ -309,7 +298,7 @@ class zcl_slpm_dpc_ext implementation.
           changing
             cr_data = er_stream.
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -346,7 +335,7 @@ class zcl_slpm_dpc_ext implementation.
           lv_dp_facade          type ref to /iwbep/if_mgw_dp_fw_facade,
           lt_request_header     type         tihttpnvp,
           ls_request_header     like line of lt_request_header,
-          lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy.
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     loop at it_key_tab assigning field-symbol(<ls_guid>).
       move <ls_guid>-value to lv_guid.
@@ -370,16 +359,16 @@ class zcl_slpm_dpc_ext implementation.
 
     try.
 
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        lo_slpm_data_provider->zif_slpm_data_provider~create_attachment(
+        lo_slpm_data_provider->create_attachment(
         exporting
         ip_content = lv_content
         ip_file_name = lv_file_name
         ip_mime_type = lv_mime_type
         ip_guid = lv_guid ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -391,7 +380,7 @@ class zcl_slpm_dpc_ext implementation.
     data: lv_guid               type crmt_object_guid,
           lv_loio               type string,
           lv_phio               type string,
-          lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy.
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     me->get_attachment_keys(
        exporting
@@ -407,15 +396,15 @@ class zcl_slpm_dpc_ext implementation.
 
     try.
 
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        lo_slpm_data_provider->zif_slpm_data_provider~delete_attachment(
+        lo_slpm_data_provider->delete_attachment(
             exporting
                 ip_guid = lv_guid
                 ip_loio = lv_loio
                 ip_phio = lv_phio ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -427,7 +416,7 @@ class zcl_slpm_dpc_ext implementation.
     data: lv_guid               type crmt_object_guid,
           lv_loio               type string,
           lv_phio               type string,
-          lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy.
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     me->get_attachment_keys(
        exporting
@@ -443,15 +432,15 @@ class zcl_slpm_dpc_ext implementation.
 
     try.
 
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        lo_slpm_data_provider->zif_slpm_data_provider~delete_attachment(
+        lo_slpm_data_provider->delete_attachment(
             exporting
                 ip_guid = lv_guid
                 ip_loio = lv_loio
                 ip_phio = lv_phio ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
 
@@ -465,7 +454,7 @@ class zcl_slpm_dpc_ext implementation.
     data: lv_guid               type crmt_object_guid,
           lv_tdid               type tdid,
           lv_text               type string,
-          lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy.
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     loop at it_key_tab assigning field-symbol(<ls_guid>).
       move <ls_guid>-value to lv_guid.
@@ -475,7 +464,6 @@ class zcl_slpm_dpc_ext implementation.
       importing
         es_data = er_entity.
 
-
     lv_text = er_entity-text.
     lv_tdid = er_entity-tdid.
 
@@ -483,34 +471,31 @@ class zcl_slpm_dpc_ext implementation.
       return.
     endif.
 
-
-
     try.
 
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        lo_slpm_data_provider->zif_slpm_data_provider~create_text(
+        lo_slpm_data_provider->create_text(
         exporting
             ip_guid = lv_guid
             ip_tdid = lv_tdid
             ip_text = lv_text ).
 
+        er_entity = lo_slpm_data_provider->get_last_text( exporting ip_guid = lv_guid ).
 
-        er_entity = lo_slpm_data_provider->zif_slpm_data_provider~get_last_text( exporting ip_guid = lv_guid ).
-
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
-
-
 
   endmethod.
 
   method productset_get_entityset.
 
-    data: lt_products type zcrm_tt_products,
-          ls_entity   like line of et_entityset.
+    data: lt_products     type zcrm_tt_products,
+          ls_entity       like line of et_entityset,
+          lo_slpm_product type ref to zif_crm_service_product.
+
 
     select a~product_guid a~product_id b~short_text
         from (
@@ -525,65 +510,107 @@ class zcl_slpm_dpc_ext implementation.
       ls_entity-guid = <ls_product>-guid.
       ls_entity-id = <ls_product>-id.
       ls_entity-name = <ls_product>-name.
+      lo_slpm_product = new zcl_crm_service_product( <ls_product>-guid ).
 
-      append  ls_entity to et_entityset.
+      ls_entity-prioritiescount = lo_slpm_product->get_resp_profile_prio_count(  ).
+
+      " We skip all products, which don't have proper priorities assigned
+      " through a response profile
+
+      if ls_entity-prioritiescount > 0.
+
+        append  ls_entity to et_entityset.
+
+      endif.
+
+      clear ls_entity.
     endloop.
 
   endmethod.
 
   method productset_get_entity.
 
-    data: lv_guid        type comt_product_guid,
-          lo_crm_product type ref to zif_crm_product.
+    data: lv_guid         type comt_product_guid,
+          lo_slpm_product type ref to zif_crm_service_product.
 
     loop at it_key_tab assigning field-symbol(<ls_guid>).
       move <ls_guid>-value to lv_guid.
     endloop.
 
-    lo_crm_product = new zcl_crm_product( lv_guid ).
-
-
+    lo_slpm_product = new zcl_crm_service_product( lv_guid ).
 
     er_entity-guid = lv_guid.
-    er_entity-id = lo_crm_product->get_id(  ).
-    er_entity-name = lo_crm_product->get_name(  ).
-
-
-*    data: lo_crm_product_decorator type ref to zif_crm_product,
-*          lo_slpm_product          type ref to zif_crm_product.
-*
-*
-*
-*    lo_crm_product_decorator = new zcl_crm_product( lv_guid ).
-*    lo_slpm_product = lo_crm_product_decorator.
-*
-*    create object lo_crm_product_decorator
-*      type
-*      zcl_slpm_product
-*      exporting
-*        io_crm_product = lo_slpm_product.
-*
+    er_entity-id = lo_slpm_product->zif_crm_product~get_id( ).
+    er_entity-name = lo_slpm_product->zif_crm_product~get_name(  ).
+    er_entity-prioritiescount = lo_slpm_product->get_resp_profile_prio_count(  ).
 
   endmethod.
 
   method problemset_create_entity.
 
-    data: lo_slpm_data_provider type ref to zcl_slpm_data_provider_proxy,
+    data: lo_slpm_data_provider type ref to zif_slpm_data_manager,
           lv_guid               type crmt_object_guid.
 
     io_data_provider->read_entry_data( importing es_data = er_entity ).
 
     try.
 
-        create object lo_slpm_data_provider.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        lv_guid = lo_slpm_data_provider->zif_slpm_data_provider~create_problem( er_entity ).
+        er_entity = lo_slpm_data_provider->create_problem( er_entity ).
 
-        clear er_entity.
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
 
-        er_entity = lo_slpm_data_provider->zif_slpm_data_provider~get_problem( lv_guid ).
+    endtry.
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_provider_exc into data(lcx_process_exception).
+  endmethod.
+
+  method priorityset_get_entityset.
+
+    data: lo_slpm_data_provider    type ref to zif_slpm_data_manager,
+          lv_product_guid          type comt_product_guid,
+          lt_priorities            type zcrm_order_tt_priorities,
+          lt_priorities_of_product type zcrm_order_tt_priorities,
+          lt_priorities_range      type range  of char40,
+          ls_priority_range        like line of lt_priorities_range.
+
+    loop at it_key_tab assigning field-symbol(<ls_guid>).
+      move <ls_guid>-value to lv_product_guid.
+    endloop.
+
+    try.
+
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        lt_priorities = lo_slpm_data_provider->get_all_priorities(  ).
+
+        sort lt_priorities.
+
+        " Filter all priorities removing priorities not relevant for a product
+
+        if lv_product_guid is not initial.
+
+          lt_priorities_of_product = lo_slpm_data_provider->get_priorities_of_product( lv_product_guid ).
+
+          loop at lt_priorities_of_product assigning field-symbol(<ls_priority_of_product>).
+
+            ls_priority_range-low = <ls_priority_of_product>-code.
+            ls_priority_range-option = 'EQ'.
+            ls_priority_range-sign = 'E'.
+
+            append ls_priority_range to lt_priorities_range.
+
+          endloop.
+
+          delete  lt_priorities where code  in lt_priorities_range.
+
+        endif.
+
+        et_entityset = lt_priorities.
+
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.

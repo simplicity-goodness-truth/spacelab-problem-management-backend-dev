@@ -14,44 +14,37 @@ class zcl_crm_categorization_schema definition
   protected section.
   private section.
 
-    class-data:
+    data:
       mv_asp_guid  type crm_erms_cat_guid,
       mv_asp_id    type crm_erms_cat_ca_id,
       mt_hierarchy type zcrm_tt_cat_schema_hierarchy.
 
     methods set_hierarchy.
 
-    methods get_cat_id
+    methods: get_cat_id
       importing
         ip_cat_guid      type crm_erms_cat_guid
       returning
-        value(rp_cat_id) type crm_erms_cat_ca_id.
-
-    methods set_asp_guid
-      importing
-        ip_asp_guid type crm_erms_cat_guid.
-
-    methods set_asp_id
-      importing
-        ip_asp_id type crm_erms_cat_ca_id.
-
-    methods set_asp_guid_by_asp_id
-      importing
-        ip_asp_id type crm_erms_cat_ca_id .
-
-    methods set_asp_id_by_asp_guid
-      importing
-        ip_asp_guid type crm_erms_cat_guid .
-
-    methods get_node_label
-      importing
-        ip_asp_guid     type crm_erms_cat_guid
-      returning
-        value(rp_label) type crm_erms_cat_ca_desc.
-
+        value(rp_cat_id) type crm_erms_cat_ca_id,
+      set_asp_guid
+        importing
+          ip_asp_guid type crm_erms_cat_guid,
+      set_asp_id
+        importing
+          ip_asp_id type crm_erms_cat_ca_id,
+      set_asp_guid_by_asp_id
+        importing
+          ip_asp_id type crm_erms_cat_ca_id ,
+      set_asp_id_by_asp_guid
+        importing
+          ip_asp_guid type crm_erms_cat_guid,
+      get_node_label
+        importing
+          ip_asp_guid     type crm_erms_cat_guid
+        returning
+          value(rp_label) type crm_erms_cat_ca_desc.
 
 endclass.
-
 
 class zcl_crm_categorization_schema implementation.
 

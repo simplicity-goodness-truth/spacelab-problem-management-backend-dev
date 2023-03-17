@@ -60,7 +60,7 @@
      <SPRSL>E</SPRSL>
      <ARBGB>ZASSISTANT_UTILITIES</ARBGB>
      <MSGNR>008</MSGNR>
-     <TEXT>Cannot get &amp;1 Business Partner name</TEXT>
+     <TEXT>Cannot get name for Business Partner  &amp;1</TEXT>
     </T100>
    </T100>
   </asx:values>

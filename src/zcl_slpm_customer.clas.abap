@@ -10,7 +10,5 @@ class zcl_slpm_customer definition
   private section.
 endclass.
 
-
-
 class zcl_slpm_customer implementation.
 endclass.

@@ -4,140 +4,126 @@ class zcl_assistant_utilities definition
 
   public section.
 
-    class-methods convert_timestamp_to_timezone
+    class-methods: convert_timestamp_to_timezone
       importing
-        ip_timestamp                   type timestamp
-        ip_timezone                    type timezone
+        ip_timestamp                    type timestamp
+        ip_timezone                     type timezone
       returning
-        value(rp_timestamp_in_timezone) type timestamp .
-    class-methods get_date_from_timestamp
-      importing
-        ip_timestamp  type timestamp
-      returning
-        value(rp_date) type dats .
-
-    class-methods get_time_from_timestamp
-      importing
-        ip_timestamp  type timestamp
-      returning
-        value(rp_time) type uzeit .
-
-
-    class-methods get_date_time_from_timestamp
-      importing
-        ip_timestamp  type timestamp
-      exporting
-        value(ep_date) type dats
-        value(ep_time) type uzeit .
-
-
-    class-methods get_system_timezone
-      returning
-        value(rp_system_timezone) type timezone .
-    class-methods get_user_timezone
-      importing
-        ip_username       type xubname
-      returning
-        value(rp_timezone) type timezone
-      raising
-        resumable(zcx_assistant_utilities_exc) .
-    class-methods get_all_users_of_org_unit
-      importing
-        ip_org_unit    type pd_objid_r
-      returning
-        value(rt_users) type zusers_tt
-      raising
-        zcx_assistant_utilities_exc .
-    class-methods get_pos_and_users_of_org_unit
-      importing
-        ip_org_unit                  type pd_objid_r
-      returning
-        value(rt_positions_and_users) type crmt_orgman_swhactor_tab .
-    class-methods get_subunits_of_org_unit
-      importing
-        ip_org_unit        type pd_objid_r
-      returning
-        value(rt_sub_units) type crmt_orgman_swhactor_tab .
-    class-methods get_bp_of_org_unit
-      importing
-        ip_org_unit type pd_objid_r
-      returning
-        value(ep_bp) type bu_partner
-      raising
-        zcx_assistant_utilities_exc .
-    class-methods get_emails_by_user_name
-      importing
-        ip_user_name             type xubname
-      returning
-        value(et_email_addresses) type addrt_email_address
-      raising
-        zcx_assistant_utilities_exc .
-    class-methods get_http_param_value
-      importing
-        ip_header       type tihttpnvp
-        ip_param_name   type char100
-      returning
-        value(ep_result) type string
-      raising
-        zcx_assistant_utilities_exc .
-    class-methods get_org_bp_name
-      importing
-        ip_bp         type bu_partner
-      returning
-        value(ep_name) type bu_nameor2
-      raising
-        zcx_assistant_utilities_exc .
-    class-methods get_user_bp_names
-      importing
-        ip_bp         type bu_partner
-      returning
-        value(ep_name) type bu_name1tx
-      raising
-        zcx_crm_order_api_exc
-        zcx_assistant_utilities_exc .
-    class-methods convert_char32_guid_to_raw16
-      importing
-        ip_guid_char32      type ags_sd_api_if_ws_obj_guid
-      returning
-        value(ep_guid_raw16) type sysuuid_x16
-      raising
-        zcx_assistant_utilities_exc .
-    class-methods convert_char36_guid_to_raw16
-      importing
-        ip_guid_char36      type char_36
-      returning
-        value(ep_guid_raw16) type sysuuid_x16
-      raising
-        zcx_assistant_utilities_exc .
-    class-methods format_date
-      importing
-        ip_format               type string
-        ip_date                 type dats
-      returning
-        value(ep_formatted_date) type string
-      raising
-        zcx_assistant_utilities_exc .
-    class-methods format_time
-      importing
-        ip_time                 type tims
-      returning
-        value(ep_formatted_time) type string .
-    class-methods get_user_names_by_uname
-      importing
-        ip_uname      type xubname
-      exporting
-        ep_last_name  type ad_namelas
-        ep_first_name type ad_namefir
-      raising
-        zcx_assistant_utilities_exc .
-
-    class-methods format_timestamp
-      importing
-        ip_timestamp                 type timestamp
-      returning
-        value(rp_formatted_timestamp) type string
-      raising
-        zcx_assistant_utilities_exc.
+        value(rp_timestamp_in_timezone) type timestamp ,
+      get_date_from_timestamp
+        importing
+          ip_timestamp   type timestamp
+        returning
+          value(rp_date) type dats ,
+      get_time_from_timestamp
+        importing
+          ip_timestamp   type timestamp
+        returning
+          value(rp_time) type uzeit ,
+      get_date_time_from_timestamp
+        importing
+          ip_timestamp   type timestamp
+        exporting
+          value(ep_date) type dats
+          value(ep_time) type uzeit,
+      get_system_timezone
+        returning
+          value(rp_system_timezone) type timezone,
+      get_user_timezone
+        importing
+          ip_username        type xubname
+        returning
+          value(rp_timezone) type timezone
+        raising
+          resumable(zcx_assistant_utilities_exc),
+      get_all_users_of_org_unit
+        importing
+          ip_org_unit     type pd_objid_r
+        returning
+          value(rt_users) type zusers_tt
+        raising
+          zcx_assistant_utilities_exc ,
+      get_pos_and_users_of_org_unit
+        importing
+          ip_org_unit                   type pd_objid_r
+        returning
+          value(rt_positions_and_users) type crmt_orgman_swhactor_tab ,
+      get_subunits_of_org_unit
+        importing
+          ip_org_unit         type pd_objid_r
+        returning
+          value(rt_sub_units) type crmt_orgman_swhactor_tab ,
+      get_bp_of_org_unit
+        importing
+          ip_org_unit  type pd_objid_r
+        returning
+          value(ep_bp) type bu_partner
+        raising
+          zcx_assistant_utilities_exc ,
+      get_emails_by_user_name
+        importing
+          ip_user_name              type xubname
+        returning
+          value(et_email_addresses) type addrt_email_address
+        raising
+          zcx_assistant_utilities_exc ,
+      get_http_param_value
+        importing
+          ip_header        type tihttpnvp
+          ip_param_name    type char100
+        returning
+          value(ep_result) type string
+        raising
+          zcx_assistant_utilities_exc ,
+      get_org_bp_name
+        importing
+          ip_bp          type bu_partner
+        returning
+          value(ep_name) type bu_nameor2
+        raising
+          zcx_assistant_utilities_exc ,
+      convert_char32_guid_to_raw16
+        importing
+          ip_guid_char32       type ags_sd_api_if_ws_obj_guid
+        returning
+          value(ep_guid_raw16) type sysuuid_x16
+        raising
+          zcx_assistant_utilities_exc ,
+      convert_char36_guid_to_raw16
+        importing
+          ip_guid_char36       type char_36
+        returning
+          value(ep_guid_raw16) type sysuuid_x16
+        raising
+          zcx_assistant_utilities_exc ,
+      format_date
+        importing
+          ip_format                type string
+          ip_date                  type dats
+        returning
+          value(ep_formatted_date) type string
+        raising
+          zcx_assistant_utilities_exc ,
+      format_time
+        importing
+          ip_time                  type tims
+        returning
+          value(ep_formatted_time) type string,
+      get_user_names_by_uname
+        importing
+          ip_uname      type xubname
+        exporting
+          ep_last_name  type ad_namelas
+          ep_first_name type ad_namefir
+        raising
+          zcx_assistant_utilities_exc ,
+      format_timestamp
+        importing
+          ip_timestamp                  type timestamp
+        returning
+          value(rp_formatted_timestamp) type string
+        raising
+          zcx_assistant_utilities_exc.
 
   protected section.
   private section.
@@ -421,6 +407,7 @@ class zcl_assistant_utilities implementation.
           lv_name_first type bu_namep_f,
           lv_name1_text type bu_name1tx.
 
+
     if ( ip_bp is not initial ) and ( ip_bp ne '0000000000' ) .
 
       select single name_org2 into ep_name
@@ -428,8 +415,6 @@ class zcl_assistant_utilities implementation.
           where partner eq ip_bp.
 
       if sy-subrc <> 0.
-
-
 
         raise exception type zcx_assistant_utilities_exc
           exporting
@@ -487,42 +472,6 @@ class zcl_assistant_utilities implementation.
         timezone = rp_system_timezone.
 
   endmethod.
-
-
-  method get_user_bp_names.
-
-    data: lv_name_last  type bu_namep_l,
-          lv_name_first type bu_namep_f,
-          lv_name1_text type bu_name1tx.
-
-
-    if ( ip_bp is not initial ) and ( ip_bp ne '0000000000' ) .
-
-      select single name_last name_first name1_text into (lv_name_last, lv_name_first, lv_name1_text)
-        from but000
-          where partner eq ip_bp.
-
-      if ( sy-subrc eq 0 ).
-
-        ep_name = cond #(
-          when lv_name1_text is not initial then lv_name1_text
-          else |{ lv_name_first }| && |{ lv_name_last }|
-        ).
-
-      else.
-
-
-        raise exception type zcx_assistant_utilities_exc
-          exporting
-            textid = zcx_assistant_utilities_exc=>cant_get_bp_name
-            ip_bp  = ip_bp.
-
-      endif.
-
-    endif. " if ip_bp is not initial
-
-  endmethod.
-
 
   method get_user_names_by_uname.
 

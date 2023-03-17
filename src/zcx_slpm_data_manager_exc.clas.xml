@@ -3,14 +3,23 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
-    <CLSNAME>ZCL_SLPM_PRODUCT</CLSNAME>
+    <CLSNAME>ZCX_SLPM_DATA_MANAGER_EXC</CLSNAME>
     <LANGU>E</LANGU>
-    <DESCRIPT>SpaceLab Problem Management Product</DESCRIPT>
+    <DESCRIPT>SpaceLab Problem Management Data Manager Exceptions</DESCRIPT>
+    <CATEGORY>40</CATEGORY>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
     <UNICODE>X</UNICODE>
+    <MSG_ID>ZSLPM_DATA_PROVIDER</MSG_ID>
    </VSEOCLASS>
+   <DESCRIPTIONS>
+    <SEOCOMPOTX>
+     <CMPNAME>CONSTRUCTOR</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>CONSTRUCTOR</DESCRIPT>
+    </SEOCOMPOTX>
+   </DESCRIPTIONS>
   </asx:values>
  </asx:abap>
 </abapGit>

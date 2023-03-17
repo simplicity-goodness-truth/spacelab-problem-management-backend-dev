@@ -1,14 +1,16 @@
 interface zif_crm_product
   public .
 
-  methods
-    get_id
-      returning
-        value(ep_id) type comt_product_id.
+  methods: get_id
+    returning
+      value(rp_id) type comt_product_id,
 
-  methods
     get_name
       returning
-        value(ep_name) type comt_prshtextx.
+        value(rp_name) type comt_prshtextx,
+
+    get_guid
+      returning
+        value(rp_guid) type comt_product_guid.
 
 endinterface.

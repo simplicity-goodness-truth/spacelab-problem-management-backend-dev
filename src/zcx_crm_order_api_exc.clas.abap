@@ -130,11 +130,11 @@ class zcx_crm_order_api_exc definition
 
     methods constructor
       importing
-        !textid           like if_t100_message=>t100key optional
-        !previous         like previous optional
-        !ip_guid          type crmt_object_guid optional
-        !ip_user          type xubname optional
-        !ip_error_message type string optional.
+        textid           like if_t100_message=>t100key optional
+        previous         like previous optional
+        ip_guid          type crmt_object_guid optional
+        ip_user          type xubname optional
+        ip_error_message type string optional.
   protected section.
   private section.
 endclass.

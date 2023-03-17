@@ -4,10 +4,10 @@ class zcl_custom_crm_order_api_proxy definition
 
   public section.
 
-    interfaces zif_custom_crm_order_create .
-    interfaces zif_custom_crm_order_init .
-    interfaces zif_custom_crm_order_read .
-    interfaces zif_custom_crm_order_update .
+    interfaces: zif_custom_crm_order_create,
+      zif_custom_crm_order_init,
+      zif_custom_crm_order_read,
+      zif_custom_crm_order_update .
     methods constructor
       raising
         zcx_crm_order_api_exc.
@@ -15,27 +15,23 @@ class zcl_custom_crm_order_api_proxy definition
   protected section.
   private section.
 
-    class-data: mv_user_authorized_for_init   type abap_bool,
-                mv_user_authorized_for_read   type abap_bool,
-                mv_user_authorized_for_create type abap_bool,
-                mv_user_authorized_for_update type abap_bool,
-                mo_custom_crm_order_init      type ref to zif_custom_crm_order_init,
-                mo_custom_crm_order_read      type ref to zif_custom_crm_order_read,
-                mo_custom_crm_order_create    type ref to zif_custom_crm_order_create,
-                mo_custom_crm_order_update    type ref to zif_custom_crm_order_update.
+    data: mv_user_authorized_for_init   type abap_bool,
+          mv_user_authorized_for_read   type abap_bool,
+          mv_user_authorized_for_create type abap_bool,
+          mv_user_authorized_for_update type abap_bool,
+          mo_custom_crm_order_init      type ref to zif_custom_crm_order_init,
+          mo_custom_crm_order_read      type ref to zif_custom_crm_order_read,
+          mo_custom_crm_order_create    type ref to zif_custom_crm_order_create,
+          mo_custom_crm_order_update    type ref to zif_custom_crm_order_update.
 
     methods: is_user_authorized_to_read
-      raising zcx_crm_order_api_exc.
-
-    methods: is_user_authorized_to_create
-      raising zcx_crm_order_api_exc.
-
-    methods: is_user_authorized_to_update
-      raising zcx_crm_order_api_exc.
-
-    methods: is_user_authorized_to_init
-      raising zcx_crm_order_api_exc.
-
+      raising zcx_crm_order_api_exc,
+      is_user_authorized_to_create
+        raising zcx_crm_order_api_exc,
+      is_user_authorized_to_update
+        raising zcx_crm_order_api_exc,
+      is_user_authorized_to_init
+        raising zcx_crm_order_api_exc.
 
 endclass.
 
@@ -277,6 +273,12 @@ class zcl_custom_crm_order_api_proxy implementation.
   endmethod.
 
   method zif_custom_crm_order_read~get_all_priorities_list.
+
+    if ( mo_custom_crm_order_read is bound ).
+
+      et_result = mo_custom_crm_order_read->get_all_priorities_list(  ).
+
+    endif.
 
   endmethod.
 

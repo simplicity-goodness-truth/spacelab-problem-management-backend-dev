@@ -78,6 +78,18 @@
      <ENTRY>DOCUMENT</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
+    <item>
+     <ID>I</ID>
+     <KEY>020</KEY>
+     <ENTRY>Priority</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>021</KEY>
+     <ENTRY>Description</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
    </TPOOL>
    <DESCRIPTIONS>
     <SEOCOMPOTX>
@@ -89,6 +101,11 @@
      <CMPNAME>DEFINE_ATTACHMENT</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>DEFINE_ATTACHMENT</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>DEFINE_PRIORITY</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>DEFINE_PRIORITY</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>DEFINE_PROBLEM</CMPNAME>

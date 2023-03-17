@@ -9,82 +9,73 @@ class zcl_custom_crm_order_api definition
       zif_custom_crm_order_update,
       zif_custom_crm_order_init.
 
-    methods is_order_matching_to_filters
+    methods: is_order_matching_to_filters
       importing
         ir_entity                type ref to data
         it_set_filters           type /iwbep/t_mgw_select_option
       changing
-        value(cp_include_record) type ac_bool .
-    methods sort_orders
-      importing
-        ir_entity        type ref to data
-        it_order         type /iwbep/t_mgw_sorting_order
-      returning
-        value(er_entity) type ref to data .
+        value(cp_include_record) type ac_bool,
+      sort_orders
+        importing
+          ir_entity        type ref to data
+          it_order         type /iwbep/t_mgw_sorting_order
+        returning
+          value(er_entity) type ref to data .
 
   protected section.
   private section.
-    class-data: mv_status_profile         type crm_j_stsma,
-                mt_db_struct_fields_map   type zcrm_order_tt_cust_fields_map,
-                mv_custom_fields_db_table type tabname16,
-                mv_process_type           type crmt_process_type,
-                mv_structure_name         type strukname,
-                mv_sold_to_party          type crmt_partner_no,
-                mv_crm_category1          type crm_erms_cat_as_id,
-                mv_crm_category2          type crm_erms_cat_as_id,
-                mv_crm_category3          type crm_erms_cat_as_id,
-                mv_crm_category4          type crm_erms_cat_as_id,
-                mv_crm_cat_schema         type crm_erms_cat_as_id.
+    data: mv_status_profile         type crm_j_stsma,
+          mt_db_struct_fields_map   type zcrm_order_tt_cust_fields_map,
+          mv_custom_fields_db_table type tabname16,
+          mv_process_type           type crmt_process_type,
+          mv_structure_name         type strukname,
+          mv_sold_to_party          type crmt_partner_no,
+          mv_crm_category1          type crm_erms_cat_as_id,
+          mv_crm_category2          type crm_erms_cat_as_id,
+          mv_crm_category3          type crm_erms_cat_as_id,
+          mv_crm_category4          type crm_erms_cat_as_id,
+          mv_crm_cat_schema         type crm_erms_cat_as_id.
 
-    methods update_custom_orderadm_h_flds
+    methods: update_custom_orderadm_h_flds
       importing
         it_custom_fields_map type zcrm_order_tt_cust_fields_map
         ip_guid              type crmt_object_guid
       returning
-        value(ep_rc)         type sy-subrc .
-
-    methods assign_customer_h_fields
-      importing
-        it_custom_fields_map type zcrm_order_tt_cust_fields_map
-      returning
-        value(es_customer_h) type crmt_customer_h_com .
-
-    methods get_texts
-      importing
-        ip_guid         type crmt_object_guid
-      exporting
-        value(et_texts) type cl_ai_crm_gw_mymessage_mpc=>tt_text
-      raising
-        zcx_crm_order_api_exc .
-
-    methods get_text_details_odata
-      importing
-        is_text           type comt_text_textdata
-        it_text_cust      type comt_text_cust_struc1_tab
-        is_orderadm_h_wrk type crmt_orderadm_h_wrk
-      returning
-        value(rs_entity)  type cl_ai_crm_gw_mymessage_mpc=>ts_text .
-
-
-
-    methods get_category_and_aspect_guids
-      importing
-        ip_asp_id   type crm_erms_cat_as_id
-        ip_cat_id   type crm_erms_cat_ca_id
-      exporting
-        ep_asp_guid type crm_erms_cat_guid
-        ep_cat_guid type crm_erms_cat_guid.
-
-    methods get_category_tree
-      importing
-        ip_asp_guid             type crm_erms_cat_guid
-        ip_cat_guid             type crm_erms_cat_guid
-      returning
-        value(rt_category_tree) type bsp_wd_dropdown_table.
+        value(ep_rc)         type sy-subrc ,
+      assign_customer_h_fields
+        importing
+          it_custom_fields_map type zcrm_order_tt_cust_fields_map
+        returning
+          value(es_customer_h) type crmt_customer_h_com ,
+      get_texts
+        importing
+          ip_guid         type crmt_object_guid
+        exporting
+          value(et_texts) type cl_ai_crm_gw_mymessage_mpc=>tt_text
+        raising
+          zcx_crm_order_api_exc ,
+      get_text_details_odata
+        importing
+          is_text           type comt_text_textdata
+          it_text_cust      type comt_text_cust_struc1_tab
+          is_orderadm_h_wrk type crmt_orderadm_h_wrk
+        returning
+          value(rs_entity)  type cl_ai_crm_gw_mymessage_mpc=>ts_text ,
+      get_category_and_aspect_guids
+        importing
+          ip_asp_id   type crm_erms_cat_as_id
+          ip_cat_id   type crm_erms_cat_ca_id
+        exporting
+          ep_asp_guid type crm_erms_cat_guid
+          ep_cat_guid type crm_erms_cat_guid,
+      get_category_tree
+        importing
+          ip_asp_guid             type crm_erms_cat_guid
+          ip_cat_guid             type crm_erms_cat_guid
+        returning
+          value(rt_category_tree) type bsp_wd_dropdown_table.
 
 endclass.
-
-
 
 class zcl_custom_crm_order_api implementation.
 
@@ -141,8 +132,8 @@ class zcl_custom_crm_order_api implementation.
       lv_user_status           type crm_j_status,
       lt_status                type standard table of tj30t,
       lt_partner               type crmt_partner_external_wrkt,
-      lv_bp                    type bu_partner,
-      lv_requestor_uname       type crmt_erms_agent_name,
+      lv_bp_num                    type bu_partner,
+      "  lv_requestor_uname       type crmt_erms_agent_name,
       lv_processor_uname       type crmt_erms_agent_name,
       lv_requestor_id          type uname,
       lv_requestor_dep         type ad_dprtmnt,
@@ -189,9 +180,9 @@ class zcl_custom_crm_order_api implementation.
 
       loop at lt_partner assigning field-symbol(<ls_partner>).
 
-        clear lv_bp.
+        clear lv_bp_num.
 
-        lv_bp = <ls_partner>-partner_no.
+        lv_bp_num = <ls_partner>-partner_no.
 
         case <ls_partner>-ref_partner_fct.
 
@@ -199,43 +190,33 @@ class zcl_custom_crm_order_api implementation.
 
           when 'SLFN0004'.
 
-            es_result-processor = lv_bp.
+            es_result-processorbusinesspartner = lv_bp_num.
+
+            " Get a Process Business Partner name
+
+            es_result-processorfullname = new zcl_bp_contacts_book( lv_bp_num )->zif_contacts_book~get_full_name(  ).
 
             " Requester
 
           when 'SLFN0002'.
 
-            call function 'CRM_ERMS_FIND_USER_FOR_BP'
-              exporting
-                ev_bupa_no   = lv_bp
-              importing
-                ev_user_name = lv_requestor_uname
-                ev_user_id   = lv_requestor_id.
+            es_result-requestorbusinesspartner = lv_bp_num.
 
-            es_result-requestorfullname = lv_requestor_uname.
-            es_result-requestorlogin = lv_requestor_id.
+            " Get a Requester Business Partner name
+
+            es_result-requestorfullname = new zcl_bp_contacts_book( lv_bp_num )->zif_contacts_book~get_full_name(  ).
 
             " Support Team
 
           when 'SLFN0003'.
 
-            es_result-supportteam = lv_bp.
+            es_result-supportteambusinesspartner = lv_bp_num.
 
         endcase. " case ls_partner-ref_partner_fct
-
 
       endloop. " loop at et_partner into ls_partner
 
     endif. " if lt_partner is not initial
-
-    " Requester department
-
-    select single department
-        from user_addr into lv_requestor_dep where bname = lv_requestor_id.
-
-    es_result-requestordepartament = lv_requestor_dep.
-
-*    " Company code
 
     " Searching for request status
 
@@ -709,7 +690,7 @@ class zcl_custom_crm_order_api implementation.
       unassign <fs_value>.
     endif.
 
-    assign component 'PROCESSOR' of structure <fs_structure> to <fs_value>.
+    assign component 'PROCESSORBUSINESSPARTNER' of structure <fs_structure> to <fs_value>.
 
     if <fs_value> is not initial.
 
@@ -1354,7 +1335,7 @@ class zcl_custom_crm_order_api implementation.
       unassign <fs_value>.
     endif.
 
-    assign component 'PROCESSOR' of structure <fs_structure> to <fs_value>.
+    assign component 'PROCESSORBUSINESSPARTNER' of structure <fs_structure> to <fs_value>.
 
     if <fs_value> is not initial.
 
@@ -1417,7 +1398,7 @@ class zcl_custom_crm_order_api implementation.
       unassign <fs_value>.
     endif.
 
-    assign component 'SUPPORTTEAM' of structure <fs_structure> to <fs_value>.
+    assign component 'SUPPORTTEAMBUSINESSPARTNER' of structure <fs_structure> to <fs_value>.
 
     if <fs_value> is not initial.
 

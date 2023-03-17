@@ -13,8 +13,6 @@ class zcl_slpm_problem_api definition
   private section.
 endclass.
 
-
-
 class zcl_slpm_problem_api implementation.
 
   method constructor.

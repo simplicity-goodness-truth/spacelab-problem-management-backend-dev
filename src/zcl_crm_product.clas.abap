@@ -7,15 +7,15 @@ class zcl_crm_product definition
     methods constructor
       importing
         ip_guid type comt_product_guid.
+
   protected section.
   private section.
-    class-data:
+    data:
       mv_guid type   comt_product_guid,
       mv_id   type   comt_product_id,
       mv_name type   comt_prshtextx.
+
 endclass.
-
-
 
 class zcl_crm_product implementation.
 
@@ -43,11 +43,15 @@ class zcl_crm_product implementation.
   endmethod.
 
   method zif_crm_product~get_id.
-    ep_id = mv_id.
+    rp_id = mv_id.
   endmethod.
 
   method zif_crm_product~get_name.
-    ep_name = mv_name.
+    rp_name = mv_name.
+  endmethod.
+
+  method zif_crm_product~get_guid.
+    rp_guid = mv_guid.
   endmethod.
 
 endclass.

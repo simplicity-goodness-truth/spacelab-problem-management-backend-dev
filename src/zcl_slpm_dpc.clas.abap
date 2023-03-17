@@ -23,262 +23,17 @@ protected section.
 
   data mo_injection type ref to /IWBEP/IF_SB_GEN_DPC_INJECTION .
 
-  methods ATTACHMENTSET_CREATE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_ATTACHMENT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods ATTACHMENTSET_DELETE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_D optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods ATTACHMENTSET_GET_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_REQUEST_OBJECT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_ATTACHMENT
-      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods ATTACHMENTSET_GET_ENTITYSET
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_FILTER_SELECT_OPTIONS type /IWBEP/T_MGW_SELECT_OPTION
-      !IS_PAGING type /IWBEP/S_MGW_PAGING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-      !IT_ORDER type /IWBEP/T_MGW_SORTING_ORDER
-      !IV_FILTER_STRING type STRING
-      !IV_SEARCH_STRING type STRING
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITYSET optional
-    exporting
-      !ET_ENTITYSET type ZCL_SLPM_MPC=>TT_ATTACHMENT
-      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods ATTACHMENTSET_UPDATE_ENTITY
+  methods TEXTSET_UPDATE_ENTITY
     importing
       !IV_ENTITY_NAME type STRING
       !IV_ENTITY_SET_NAME type STRING
       !IV_SOURCE_NAME type STRING
       !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
       !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_U optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_ATTACHMENT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PROBLEMSET_CREATE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PROBLEM
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PROBLEMSET_DELETE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_D optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PROBLEMSET_GET_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_REQUEST_OBJECT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PROBLEM
-      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PROBLEMSET_GET_ENTITYSET
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_FILTER_SELECT_OPTIONS type /IWBEP/T_MGW_SELECT_OPTION
-      !IS_PAGING type /IWBEP/S_MGW_PAGING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-      !IT_ORDER type /IWBEP/T_MGW_SORTING_ORDER
-      !IV_FILTER_STRING type STRING
-      !IV_SEARCH_STRING type STRING
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITYSET optional
-    exporting
-      !ET_ENTITYSET type ZCL_SLPM_MPC=>TT_PROBLEM
-      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PROBLEMSET_UPDATE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_U optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PROBLEM
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PRODUCTSET_CREATE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PRODUCT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PRODUCTSET_DELETE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_D optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PRODUCTSET_GET_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_REQUEST_OBJECT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PRODUCT
-      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PRODUCTSET_GET_ENTITYSET
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_FILTER_SELECT_OPTIONS type /IWBEP/T_MGW_SELECT_OPTION
-      !IS_PAGING type /IWBEP/S_MGW_PAGING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-      !IT_ORDER type /IWBEP/T_MGW_SORTING_ORDER
-      !IV_FILTER_STRING type STRING
-      !IV_SEARCH_STRING type STRING
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITYSET optional
-    exporting
-      !ET_ENTITYSET type ZCL_SLPM_MPC=>TT_PRODUCT
-      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods PRODUCTSET_UPDATE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_U optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PRODUCT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods TEXTSET_CREATE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
       !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
       !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
     exporting
       !ER_ENTITY type ZCL_SLPM_MPC=>TS_TEXT
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods TEXTSET_DELETE_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_D optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-    raising
-      /IWBEP/CX_MGW_BUSI_EXCEPTION
-      /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods TEXTSET_GET_ENTITY
-    importing
-      !IV_ENTITY_NAME type STRING
-      !IV_ENTITY_SET_NAME type STRING
-      !IV_SOURCE_NAME type STRING
-      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
-      !IO_REQUEST_OBJECT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
-      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
-      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
-    exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_TEXT
-      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
     raising
       /IWBEP/CX_MGW_BUSI_EXCEPTION
       /IWBEP/CX_MGW_TECH_EXCEPTION .
@@ -301,7 +56,47 @@ protected section.
     raising
       /IWBEP/CX_MGW_BUSI_EXCEPTION
       /IWBEP/CX_MGW_TECH_EXCEPTION .
-  methods TEXTSET_UPDATE_ENTITY
+  methods TEXTSET_GET_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_REQUEST_OBJECT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_TEXT
+      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods TEXTSET_DELETE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_D optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods TEXTSET_CREATE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_TEXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRODUCTSET_UPDATE_ENTITY
     importing
       !IV_ENTITY_NAME type STRING
       !IV_ENTITY_SET_NAME type STRING
@@ -311,7 +106,285 @@ protected section.
       !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
       !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
     exporting
-      !ER_ENTITY type ZCL_SLPM_MPC=>TS_TEXT
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PRODUCT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRODUCTSET_GET_ENTITYSET
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_FILTER_SELECT_OPTIONS type /IWBEP/T_MGW_SELECT_OPTION
+      !IS_PAGING type /IWBEP/S_MGW_PAGING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IT_ORDER type /IWBEP/T_MGW_SORTING_ORDER
+      !IV_FILTER_STRING type STRING
+      !IV_SEARCH_STRING type STRING
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITYSET optional
+    exporting
+      !ET_ENTITYSET type ZCL_SLPM_MPC=>TT_PRODUCT
+      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRODUCTSET_GET_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_REQUEST_OBJECT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PRODUCT
+      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRODUCTSET_DELETE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_D optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRODUCTSET_CREATE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PRODUCT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PROBLEMSET_UPDATE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_U optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PROBLEM
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PROBLEMSET_GET_ENTITYSET
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_FILTER_SELECT_OPTIONS type /IWBEP/T_MGW_SELECT_OPTION
+      !IS_PAGING type /IWBEP/S_MGW_PAGING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IT_ORDER type /IWBEP/T_MGW_SORTING_ORDER
+      !IV_FILTER_STRING type STRING
+      !IV_SEARCH_STRING type STRING
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITYSET optional
+    exporting
+      !ET_ENTITYSET type ZCL_SLPM_MPC=>TT_PROBLEM
+      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PROBLEMSET_GET_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_REQUEST_OBJECT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PROBLEM
+      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PROBLEMSET_DELETE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_D optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PROBLEMSET_CREATE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PROBLEM
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRIORITYSET_UPDATE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_U optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PRIORITY
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRIORITYSET_GET_ENTITYSET
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_FILTER_SELECT_OPTIONS type /IWBEP/T_MGW_SELECT_OPTION
+      !IS_PAGING type /IWBEP/S_MGW_PAGING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IT_ORDER type /IWBEP/T_MGW_SORTING_ORDER
+      !IV_FILTER_STRING type STRING
+      !IV_SEARCH_STRING type STRING
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITYSET optional
+    exporting
+      !ET_ENTITYSET type ZCL_SLPM_MPC=>TT_PRIORITY
+      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRIORITYSET_GET_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_REQUEST_OBJECT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PRIORITY
+      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRIORITYSET_DELETE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_D optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods PRIORITYSET_CREATE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_PRIORITY
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods ATTACHMENTSET_UPDATE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_U optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_ATTACHMENT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods ATTACHMENTSET_GET_ENTITYSET
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_FILTER_SELECT_OPTIONS type /IWBEP/T_MGW_SELECT_OPTION
+      !IS_PAGING type /IWBEP/S_MGW_PAGING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IT_ORDER type /IWBEP/T_MGW_SORTING_ORDER
+      !IV_FILTER_STRING type STRING
+      !IV_SEARCH_STRING type STRING
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITYSET optional
+    exporting
+      !ET_ENTITYSET type ZCL_SLPM_MPC=>TT_ATTACHMENT
+      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods ATTACHMENTSET_GET_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_REQUEST_OBJECT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_ATTACHMENT
+      !ES_RESPONSE_CONTEXT type /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods ATTACHMENTSET_DELETE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_D optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+    raising
+      /IWBEP/CX_MGW_BUSI_EXCEPTION
+      /IWBEP/CX_MGW_TECH_EXCEPTION .
+  methods ATTACHMENTSET_CREATE_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING
+      !IV_ENTITY_SET_NAME type STRING
+      !IV_SOURCE_NAME type STRING
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH
+      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER optional
+    exporting
+      !ER_ENTITY type ZCL_SLPM_MPC=>TS_ATTACHMENT
     raising
       /IWBEP/CX_MGW_BUSI_EXCEPTION
       /IWBEP/CX_MGW_TECH_EXCEPTION .
@@ -329,7 +402,7 @@ CLASS ZCL_SLPM_DPC IMPLEMENTATION.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_ENTITY.
 *&----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TEMP_CRT_ENTITY_BASE
-*&* This class has been generated on 14.03.2023 17:36:20 in client 200
+*&* This class has been generated on 17.03.2023 10:43:22 in client 200
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
@@ -337,6 +410,7 @@ CLASS ZCL_SLPM_DPC IMPLEMENTATION.
 *&-----------------------------------------------------------------------------------------------*
 
  DATA problemset_create_entity TYPE zcl_slpm_mpc=>ts_problem.
+ DATA priorityset_create_entity TYPE zcl_slpm_mpc=>ts_priority.
  DATA textset_create_entity TYPE zcl_slpm_mpc=>ts_text.
  DATA attachmentset_create_entity TYPE zcl_slpm_mpc=>ts_attachment.
  DATA productset_create_entity TYPE zcl_slpm_mpc=>ts_product.
@@ -364,6 +438,29 @@ CASE lv_entityset_name.
     copy_data_to_ref(
       EXPORTING
         is_data = problemset_create_entity
+      CHANGING
+        cr_data = er_entity
+   ).
+
+*-------------------------------------------------------------------------*
+*             EntitySet -  PrioritySet
+*-------------------------------------------------------------------------*
+     WHEN 'PrioritySet'.
+*     Call the entity set generated method
+    priorityset_create_entity(
+         EXPORTING iv_entity_name     = iv_entity_name
+                   iv_entity_set_name = iv_entity_set_name
+                   iv_source_name     = iv_source_name
+                   io_data_provider   = io_data_provider
+                   it_key_tab         = it_key_tab
+                   it_navigation_path = it_navigation_path
+                   io_tech_request_context = io_tech_request_context
+       	 IMPORTING er_entity          = priorityset_create_entity
+    ).
+*     Send specific entity data to the caller interfaces
+    copy_data_to_ref(
+      EXPORTING
+        is_data = priorityset_create_entity
       CHANGING
         cr_data = er_entity
    ).
@@ -456,7 +553,7 @@ ENDCASE.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~DELETE_ENTITY.
 *&----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TEMP_DEL_ENTITY_BASE
-*&* This class has been generated on 14.03.2023 17:36:20 in client 200
+*&* This class has been generated on 17.03.2023 10:43:22 in client 200
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
@@ -468,6 +565,20 @@ ENDCASE.
 lv_entityset_name = io_tech_request_context->get_entity_set_name( ).
 
 CASE lv_entityset_name.
+*-------------------------------------------------------------------------*
+*             EntitySet -  PrioritySet
+*-------------------------------------------------------------------------*
+      when 'PrioritySet'.
+*     Call the entity set generated method
+     priorityset_delete_entity(
+          EXPORTING iv_entity_name     = iv_entity_name
+                    iv_entity_set_name = iv_entity_set_name
+                    iv_source_name     = iv_source_name
+                    it_key_tab         = it_key_tab
+                    it_navigation_path = it_navigation_path
+                    io_tech_request_context = io_tech_request_context
+     ).
+
 *-------------------------------------------------------------------------*
 *             EntitySet -  ProblemSet
 *-------------------------------------------------------------------------*
@@ -540,7 +651,7 @@ CASE lv_entityset_name.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_ENTITY.
 *&-----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TEMP_GETENTITY_BASE
-*&* This class has been generated  on 14.03.2023 17:36:20 in client 200
+*&* This class has been generated  on 17.03.2023 10:43:22 in client 200
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
@@ -551,6 +662,7 @@ CASE lv_entityset_name.
  DATA textset_get_entity TYPE zcl_slpm_mpc=>ts_text.
  DATA attachmentset_get_entity TYPE zcl_slpm_mpc=>ts_attachment.
  DATA productset_get_entity TYPE zcl_slpm_mpc=>ts_product.
+ DATA priorityset_get_entity TYPE zcl_slpm_mpc=>ts_priority.
  DATA lv_entityset_name TYPE string.
  DATA lr_entity TYPE REF TO data.       "#EC NEEDED
 
@@ -669,6 +781,34 @@ CASE lv_entityset_name.
 *         In case of initial values - unbind the entity reference
           er_entity = lr_entity.
         ENDIF.
+*-------------------------------------------------------------------------*
+*             EntitySet -  PrioritySet
+*-------------------------------------------------------------------------*
+      WHEN 'PrioritySet'.
+*     Call the entity set generated method
+          priorityset_get_entity(
+               EXPORTING iv_entity_name     = iv_entity_name
+                         iv_entity_set_name = iv_entity_set_name
+                         iv_source_name     = iv_source_name
+                         it_key_tab         = it_key_tab
+                         it_navigation_path = it_navigation_path
+                         io_tech_request_context = io_tech_request_context
+               IMPORTING er_entity          = priorityset_get_entity
+                         es_response_context = es_response_context
+          ).
+
+        IF priorityset_get_entity IS NOT INITIAL.
+*     Send specific entity data to the caller interface
+          copy_data_to_ref(
+            EXPORTING
+              is_data = priorityset_get_entity
+            CHANGING
+              cr_data = er_entity
+          ).
+        ELSE.
+*         In case of initial values - unbind the entity reference
+          er_entity = lr_entity.
+        ENDIF.
 
       WHEN OTHERS.
         super->/iwbep/if_mgw_appl_srv_runtime~get_entity(
@@ -688,7 +828,7 @@ CASE lv_entityset_name.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_ENTITYSET.
 *&----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TMP_ENTITYSET_BASE
-*&* This class has been generated on 14.03.2023 17:36:20 in client 200
+*&* This class has been generated on 17.03.2023 10:43:22 in client 200
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
@@ -698,6 +838,7 @@ CASE lv_entityset_name.
  DATA textset_get_entityset TYPE zcl_slpm_mpc=>tt_text.
  DATA attachmentset_get_entityset TYPE zcl_slpm_mpc=>tt_attachment.
  DATA productset_get_entityset TYPE zcl_slpm_mpc=>tt_product.
+ DATA priorityset_get_entityset TYPE zcl_slpm_mpc=>tt_priority.
  DATA lv_entityset_name TYPE string.
 
 lv_entityset_name = io_tech_request_context->get_entity_set_name( ).
@@ -823,6 +964,36 @@ CASE lv_entityset_name.
           cr_data = er_entityset
       ).
 
+*-------------------------------------------------------------------------*
+*             EntitySet -  PrioritySet
+*-------------------------------------------------------------------------*
+   WHEN 'PrioritySet'.
+*     Call the entity set generated method
+      priorityset_get_entityset(
+        EXPORTING
+         iv_entity_name = iv_entity_name
+         iv_entity_set_name = iv_entity_set_name
+         iv_source_name = iv_source_name
+         it_filter_select_options = it_filter_select_options
+         it_order = it_order
+         is_paging = is_paging
+         it_navigation_path = it_navigation_path
+         it_key_tab = it_key_tab
+         iv_filter_string = iv_filter_string
+         iv_search_string = iv_search_string
+         io_tech_request_context = io_tech_request_context
+       IMPORTING
+         et_entityset = priorityset_get_entityset
+         es_response_context = es_response_context
+       ).
+*     Send specific entity data to the caller interface
+      copy_data_to_ref(
+        EXPORTING
+          is_data = priorityset_get_entityset
+        CHANGING
+          cr_data = er_entityset
+      ).
+
     WHEN OTHERS.
       super->/iwbep/if_mgw_appl_srv_runtime~get_entityset(
         EXPORTING
@@ -846,17 +1017,18 @@ CASE lv_entityset_name.
   method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~UPDATE_ENTITY.
 *&----------------------------------------------------------------------------------------------*
 *&  Include           /IWBEP/DPC_TEMP_UPD_ENTITY_BASE
-*&* This class has been generated on 14.03.2023 17:36:20 in client 200
+*&* This class has been generated on 17.03.2023 10:43:22 in client 200
 *&*
 *&*       WARNING--> NEVER MODIFY THIS CLASS <--WARNING
 *&*   If you want to change the DPC implementation, use the
 *&*   generated methods inside the DPC provider subclass - ZCL_SLPM_DPC_EXT
 *&-----------------------------------------------------------------------------------------------*
 
- DATA problemset_update_entity TYPE zcl_slpm_mpc=>ts_problem.
- DATA textset_update_entity TYPE zcl_slpm_mpc=>ts_text.
- DATA attachmentset_update_entity TYPE zcl_slpm_mpc=>ts_attachment.
+ DATA priorityset_update_entity TYPE zcl_slpm_mpc=>ts_priority.
  DATA productset_update_entity TYPE zcl_slpm_mpc=>ts_product.
+ DATA attachmentset_update_entity TYPE zcl_slpm_mpc=>ts_attachment.
+ DATA textset_update_entity TYPE zcl_slpm_mpc=>ts_text.
+ DATA problemset_update_entity TYPE zcl_slpm_mpc=>ts_problem.
  DATA lv_entityset_name TYPE string.
  DATA lr_entity TYPE REF TO data. "#EC NEEDED
 
@@ -864,11 +1036,11 @@ lv_entityset_name = io_tech_request_context->get_entity_set_name( ).
 
 CASE lv_entityset_name.
 *-------------------------------------------------------------------------*
-*             EntitySet -  ProblemSet
+*             EntitySet -  PrioritySet
 *-------------------------------------------------------------------------*
-      WHEN 'ProblemSet'.
+      WHEN 'PrioritySet'.
 *     Call the entity set generated method
-          problemset_update_entity(
+          priorityset_update_entity(
                EXPORTING iv_entity_name     = iv_entity_name
                          iv_entity_set_name = iv_entity_set_name
                          iv_source_name     = iv_source_name
@@ -876,13 +1048,13 @@ CASE lv_entityset_name.
                          it_key_tab         = it_key_tab
                          it_navigation_path = it_navigation_path
                          io_tech_request_context = io_tech_request_context
-               IMPORTING er_entity          = problemset_update_entity
+               IMPORTING er_entity          = priorityset_update_entity
           ).
-       IF problemset_update_entity IS NOT INITIAL.
+       IF priorityset_update_entity IS NOT INITIAL.
 *     Send specific entity data to the caller interface
           copy_data_to_ref(
             EXPORTING
-              is_data = problemset_update_entity
+              is_data = priorityset_update_entity
             CHANGING
               cr_data = er_entity
           ).
@@ -891,11 +1063,11 @@ CASE lv_entityset_name.
           er_entity = lr_entity.
         ENDIF.
 *-------------------------------------------------------------------------*
-*             EntitySet -  TextSet
+*             EntitySet -  ProductSet
 *-------------------------------------------------------------------------*
-      WHEN 'TextSet'.
+      WHEN 'ProductSet'.
 *     Call the entity set generated method
-          textset_update_entity(
+          productset_update_entity(
                EXPORTING iv_entity_name     = iv_entity_name
                          iv_entity_set_name = iv_entity_set_name
                          iv_source_name     = iv_source_name
@@ -903,13 +1075,13 @@ CASE lv_entityset_name.
                          it_key_tab         = it_key_tab
                          it_navigation_path = it_navigation_path
                          io_tech_request_context = io_tech_request_context
-               IMPORTING er_entity          = textset_update_entity
+               IMPORTING er_entity          = productset_update_entity
           ).
-       IF textset_update_entity IS NOT INITIAL.
+       IF productset_update_entity IS NOT INITIAL.
 *     Send specific entity data to the caller interface
           copy_data_to_ref(
             EXPORTING
-              is_data = textset_update_entity
+              is_data = productset_update_entity
             CHANGING
               cr_data = er_entity
           ).
@@ -945,11 +1117,11 @@ CASE lv_entityset_name.
           er_entity = lr_entity.
         ENDIF.
 *-------------------------------------------------------------------------*
-*             EntitySet -  ProductSet
+*             EntitySet -  TextSet
 *-------------------------------------------------------------------------*
-      WHEN 'ProductSet'.
+      WHEN 'TextSet'.
 *     Call the entity set generated method
-          productset_update_entity(
+          textset_update_entity(
                EXPORTING iv_entity_name     = iv_entity_name
                          iv_entity_set_name = iv_entity_set_name
                          iv_source_name     = iv_source_name
@@ -957,13 +1129,40 @@ CASE lv_entityset_name.
                          it_key_tab         = it_key_tab
                          it_navigation_path = it_navigation_path
                          io_tech_request_context = io_tech_request_context
-               IMPORTING er_entity          = productset_update_entity
+               IMPORTING er_entity          = textset_update_entity
           ).
-       IF productset_update_entity IS NOT INITIAL.
+       IF textset_update_entity IS NOT INITIAL.
 *     Send specific entity data to the caller interface
           copy_data_to_ref(
             EXPORTING
-              is_data = productset_update_entity
+              is_data = textset_update_entity
+            CHANGING
+              cr_data = er_entity
+          ).
+        ELSE.
+*         In case of initial values - unbind the entity reference
+          er_entity = lr_entity.
+        ENDIF.
+*-------------------------------------------------------------------------*
+*             EntitySet -  ProblemSet
+*-------------------------------------------------------------------------*
+      WHEN 'ProblemSet'.
+*     Call the entity set generated method
+          problemset_update_entity(
+               EXPORTING iv_entity_name     = iv_entity_name
+                         iv_entity_set_name = iv_entity_set_name
+                         iv_source_name     = iv_source_name
+                         io_data_provider   = io_data_provider
+                         it_key_tab         = it_key_tab
+                         it_navigation_path = it_navigation_path
+                         io_tech_request_context = io_tech_request_context
+               IMPORTING er_entity          = problemset_update_entity
+          ).
+       IF problemset_update_entity IS NOT INITIAL.
+*     Send specific entity data to the caller interface
+          copy_data_to_ref(
+            EXPORTING
+              is_data = problemset_update_entity
             CHANGING
               cr_data = er_entity
           ).
@@ -1143,6 +1342,46 @@ lo_logger = /iwbep/if_mgw_conv_srv_runtime~get_logger( ).
     EXPORTING
       textid = /iwbep/cx_mgw_not_impl_exc=>method_not_implemented
       method = 'CHECK_SUBSCRIPTION_AUTHORITY'.
+  endmethod.
+
+
+  method PRIORITYSET_CREATE_ENTITY.
+  RAISE EXCEPTION TYPE /iwbep/cx_mgw_not_impl_exc
+    EXPORTING
+      textid = /iwbep/cx_mgw_not_impl_exc=>method_not_implemented
+      method = 'PRIORITYSET_CREATE_ENTITY'.
+  endmethod.
+
+
+  method PRIORITYSET_DELETE_ENTITY.
+  RAISE EXCEPTION TYPE /iwbep/cx_mgw_not_impl_exc
+    EXPORTING
+      textid = /iwbep/cx_mgw_not_impl_exc=>method_not_implemented
+      method = 'PRIORITYSET_DELETE_ENTITY'.
+  endmethod.
+
+
+  method PRIORITYSET_GET_ENTITY.
+  RAISE EXCEPTION TYPE /iwbep/cx_mgw_not_impl_exc
+    EXPORTING
+      textid = /iwbep/cx_mgw_not_impl_exc=>method_not_implemented
+      method = 'PRIORITYSET_GET_ENTITY'.
+  endmethod.
+
+
+  method PRIORITYSET_GET_ENTITYSET.
+  RAISE EXCEPTION TYPE /iwbep/cx_mgw_not_impl_exc
+    EXPORTING
+      textid = /iwbep/cx_mgw_not_impl_exc=>method_not_implemented
+      method = 'PRIORITYSET_GET_ENTITYSET'.
+  endmethod.
+
+
+  method PRIORITYSET_UPDATE_ENTITY.
+  RAISE EXCEPTION TYPE /iwbep/cx_mgw_not_impl_exc
+    EXPORTING
+      textid = /iwbep/cx_mgw_not_impl_exc=>method_not_implemented
+      method = 'PRIORITYSET_UPDATE_ENTITY'.
   endmethod.
 
 

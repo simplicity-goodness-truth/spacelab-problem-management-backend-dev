@@ -3,16 +3,22 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <T100A>
-    <ARBGB>ZSLPM_DATA_PROVIDER</ARBGB>
+    <ARBGB>ZSLPM_DATA_MANAGER</ARBGB>
     <MASTERLANG>E</MASTERLANG>
-    <STEXT>SpaceLab Problem Management Message Class: Data Provider</STEXT>
+    <STEXT>SpaceLab Problem Management Message Class: Data Manager</STEXT>
    </T100A>
    <T100>
     <T100>
      <SPRSL>E</SPRSL>
-     <ARBGB>ZSLPM_DATA_PROVIDER</ARBGB>
+     <ARBGB>ZSLPM_DATA_MANAGER</ARBGB>
      <MSGNR>001</MSGNR>
-     <TEXT>PM: user &amp;1 doesn&apos;t have authorizations to read problems</TEXT>
+     <TEXT>SLPM: user &amp;1 doesn&apos;t have authorizations to read problems</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZSLPM_DATA_MANAGER</ARBGB>
+     <MSGNR>002</MSGNR>
+     <TEXT>SLPM: &amp;1</TEXT>
     </T100>
    </T100>
   </asx:values>
