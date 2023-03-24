@@ -1,6 +1,10 @@
 interface zif_slpm_data_manager
   public .
+
   methods: get_problems_list
+    importing
+      it_filters       type /iwbep/t_mgw_select_option optional
+      it_order         type /iwbep/t_mgw_sorting_order  optional
     returning
       value(et_result) type zcrm_order_tt_sl_problems
     raising
@@ -97,7 +101,8 @@ interface zif_slpm_data_manager
       raising
         zcx_crm_order_api_exc
         zcx_assistant_utilities_exc
-        zcx_slpm_data_manager_exc,
+        zcx_slpm_data_manager_exc
+        zcx_slpm_configuration_exc,
 
     get_all_priorities
       returning
@@ -111,6 +116,27 @@ interface zif_slpm_data_manager
       returning
         value(rt_priorities) type zcrm_order_tt_priorities
       raising
+        zcx_crm_order_api_exc,
+
+    update_problem
+      importing
+        ip_guid          type crmt_object_guid
+        is_problem       type zcrm_order_ts_sl_problem
+      returning
+        value(rs_result) type zcrm_order_ts_sl_problem
+      raising
+        zcx_crm_order_api_exc
+        zcx_assistant_utilities_exc
+        zcx_slpm_data_manager_exc
+        zcx_slpm_configuration_exc,
+
+    get_list_of_possible_statuses
+      importing
+        ip_status          type j_estat
+      returning
+        value(rt_statuses) type zcrm_order_tt_statuses
+      raising
         zcx_crm_order_api_exc.
+
 
 endinterface.

@@ -109,14 +109,6 @@ class zcl_assistant_utilities definition
           ip_time                  type tims
         returning
           value(ep_formatted_time) type string,
-      get_user_names_by_uname
-        importing
-          ip_uname      type xubname
-        exporting
-          ep_last_name  type ad_namelas
-          ep_first_name type ad_namefir
-        raising
-          zcx_assistant_utilities_exc ,
       format_timestamp
         importing
           ip_timestamp                  type timestamp
@@ -275,9 +267,9 @@ class zcl_assistant_utilities implementation.
           exporting
             ev_bupa_no = lv_bp
           importing
-            ev_user_id = ls_user-uname.
+            ev_user_id = ls_user-username.
 
-        if ls_user-uname is not initial.
+        if ls_user-username is not initial.
 
           append ls_user to rt_users.
 
@@ -473,25 +465,6 @@ class zcl_assistant_utilities implementation.
 
   endmethod.
 
-  method get_user_names_by_uname.
-
-    select single name_last name_first into ( ep_last_name, ep_first_name )
-      from user_addr
-        where bname eq ip_uname.
-
-    if sy-subrc ne 0.
-
-
-      raise exception type zcx_assistant_utilities_exc
-        exporting
-          textid  = zcx_assistant_utilities_exc=>not_valid_user
-          ip_user = ip_uname.
-
-    endif.
-
-  endmethod.
-
-
   method get_user_timezone.
 
     data: lv_timezone type timezone.
@@ -555,10 +528,13 @@ class zcl_assistant_utilities implementation.
   method get_date_time_from_timestamp.
 
     data:
-      lv_date type sy-datum,
-      lv_time type sy-uzeit.
+      lv_date     type sy-datum,
+      lv_time     type sy-uzeit,
+      lv_system_timezone type timezone.
 
-    convert time stamp ip_timestamp time zone 'UTC'
+    lv_system_timezone = get_system_timezone(  ).
+
+    convert time stamp ip_timestamp time zone lv_system_timezone
         into date lv_date time lv_time.
 
     ep_date = lv_date.

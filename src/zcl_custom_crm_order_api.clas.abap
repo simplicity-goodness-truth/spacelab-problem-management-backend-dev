@@ -7,7 +7,8 @@ class zcl_custom_crm_order_api definition
     interfaces: zif_custom_crm_order_read,
       zif_custom_crm_order_create,
       zif_custom_crm_order_update,
-      zif_custom_crm_order_init.
+      zif_custom_crm_order_init,
+      zif_custom_crm_order_organizer.
 
     methods: is_order_matching_to_filters
       importing
@@ -132,7 +133,7 @@ class zcl_custom_crm_order_api implementation.
       lv_user_status           type crm_j_status,
       lt_status                type standard table of tj30t,
       lt_partner               type crmt_partner_external_wrkt,
-      lv_bp_num                    type bu_partner,
+      lv_bp_num                type bu_partner,
       "  lv_requestor_uname       type crmt_erms_agent_name,
       lv_processor_uname       type crmt_erms_agent_name,
       lv_requestor_id          type uname,
@@ -404,7 +405,6 @@ class zcl_custom_crm_order_api implementation.
       return.
 
     endif. " if lv_db_fields_list is initial
-
 
     try.
 
@@ -1277,7 +1277,7 @@ class zcl_custom_crm_order_api implementation.
       lv_note = <fs_value>.
 
       ls_text-ref_guid = ip_guid.
-      ls_text-tdid = 'SU99'.
+      ls_text-tdid = 'SU01'.
       ls_text-tdstyle = 'SYSTEM'.        .
       ls_text-mode = 'I'.
       ls_text_line-tdline = lv_note.
@@ -1360,7 +1360,6 @@ class zcl_custom_crm_order_api implementation.
     if <fs_value> is not initial.
 
       ls_status-status = <fs_value>.
-
 
       if ls_status-status is not initial.
 
@@ -2195,6 +2194,105 @@ class zcl_custom_crm_order_api implementation.
         iv_schema_guid       = ip_asp_guid
       importing
         et_cat_tree          = rt_category_tree.
+  endmethod.
+
+  method zif_custom_crm_order_organizer~is_order_matching_to_filters.
+
+    data: lt_filter_sel_opt type /iwbep/t_cod_select_options,
+          lo_structure_ref  type ref to data.
+
+    field-symbols: <fs_structure> type any,
+                   <fs_value>     type any.
+
+    " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
+    "   Decode incoming abstract entity
+    " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
+
+    create data lo_structure_ref type standard table of (mv_structure_name).
+    assign lo_structure_ref->* to <fs_structure>.
+
+    if ( ir_entity is bound ).
+
+      assign ir_entity->* to <fs_structure>.
+
+    endif. " if ( ir_entity is bound )
+
+    loop at it_set_filters assigning field-symbol(<ls_set_filters>).
+
+      clear lt_filter_sel_opt.
+      lt_filter_sel_opt = <ls_set_filters>-select_options.
+
+      assign component <ls_set_filters>-property of structure <fs_structure> to <fs_value>.
+
+      if ( sy-subrc eq 0 ).
+
+        if <fs_value> not in lt_filter_sel_opt.
+
+          cp_include_record = abap_false.
+          exit.
+
+        endif.
+
+      endif. " if ( sy-subrc eq 0 ) and ( <fs_value> is not initial )
+
+    endloop. " loop at it_set_filters ASSIGNING FIELD-SYMBOL(<ls_set_filters>)
+
+  endmethod.
+
+  method zif_custom_crm_order_organizer~sort_orders.
+
+    data: lo_table_ref type ref to data,
+          lt_order_tab type abap_sortorder_tab,
+          ls_order_tab type abap_sortorder.
+
+    field-symbols:
+      <fs_table> type any table,
+      <fs_value> type any.
+
+    " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
+    "   Decode incoming abstract entity
+    " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
+    create data lo_table_ref type standard table of (mv_structure_name).
+    assign lo_table_ref->* to <fs_table>.
+
+    if ( ir_entity is bound ).
+
+      assign ir_entity->* to <fs_table>.
+
+    endif. " if ( ir_entity is bound )
+
+    loop at it_order assigning field-symbol(<ls_order>).
+
+      if <ls_order>-order = 'desc'.
+        ls_order_tab-descending = abap_true.
+      else.
+        ls_order_tab-descending = abap_false.
+      endif.
+
+
+      search <ls_order>-property for 'Date' .
+      if sy-subrc <> 0.
+        ls_order_tab-astext = abap_true.
+      endif.
+
+      ls_order_tab-name = <ls_order>-property.
+
+      translate ls_order_tab-name to upper case.
+
+      append ls_order_tab to lt_order_tab.
+
+      clear:
+        ls_order_tab.
+
+    endloop. " loop at it_order assigning field-symbol(<ls_order>)
+
+    try.
+        sort <fs_table> by (lt_order_tab).
+      catch cx_sy_dyn_table_ill_comp_val.
+    endtry.
+
+    get reference of <fs_table> into er_entity.
+
   endmethod.
 
 endclass.

@@ -7,7 +7,8 @@ class zcl_custom_crm_order_api_proxy definition
     interfaces: zif_custom_crm_order_create,
       zif_custom_crm_order_init,
       zif_custom_crm_order_read,
-      zif_custom_crm_order_update .
+      zif_custom_crm_order_update,
+      zif_custom_crm_order_organizer.
     methods constructor
       raising
         zcx_crm_order_api_exc.
@@ -22,7 +23,8 @@ class zcl_custom_crm_order_api_proxy definition
           mo_custom_crm_order_init      type ref to zif_custom_crm_order_init,
           mo_custom_crm_order_read      type ref to zif_custom_crm_order_read,
           mo_custom_crm_order_create    type ref to zif_custom_crm_order_create,
-          mo_custom_crm_order_update    type ref to zif_custom_crm_order_update.
+          mo_custom_crm_order_update    type ref to zif_custom_crm_order_update,
+          mo_custom_crm_order_organizer type ref to zif_custom_crm_order_organizer.
 
     methods: is_user_authorized_to_read
       raising zcx_crm_order_api_exc,
@@ -33,9 +35,12 @@ class zcl_custom_crm_order_api_proxy definition
       is_user_authorized_to_init
         raising zcx_crm_order_api_exc.
 
-endclass.
+ENDCLASS.
 
-class zcl_custom_crm_order_api_proxy implementation.
+
+
+CLASS ZCL_CUSTOM_CRM_ORDER_API_PROXY IMPLEMENTATION.
+
 
   method constructor.
 
@@ -54,6 +59,7 @@ class zcl_custom_crm_order_api_proxy implementation.
         mo_custom_crm_order_read ?= mo_custom_crm_order_init.
         mo_custom_crm_order_create ?= mo_custom_crm_order_init.
         mo_custom_crm_order_update ?= mo_custom_crm_order_init.
+        mo_custom_crm_order_organizer ?= mo_custom_crm_order_init.
 
       endif. "  if ( mv_user_authorized_for_read eq abap_true )
 
@@ -61,6 +67,7 @@ class zcl_custom_crm_order_api_proxy implementation.
     endif. " if ( mv_user_authorized_for_init eq abap_true )
 
   endmethod.
+
 
   method is_user_authorized_to_create.
 
@@ -76,24 +83,6 @@ class zcl_custom_crm_order_api_proxy implementation.
           ip_user = sy-uname.
 
     endif.
-
-  endmethod.
-
-  method is_user_authorized_to_update.
-
-    mv_user_authorized_for_update = abap_true.
-
-    if ( mv_user_authorized_for_update eq abap_false ).
-
-      " User has no authorizations to update process type
-
-      raise exception type zcx_crm_order_api_exc
-        exporting
-          textid  = zcx_crm_order_api_exc=>not_authorized_for_update
-          ip_user = sy-uname.
-
-    endif.
-
 
   endmethod.
 
@@ -116,6 +105,7 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
+
   method is_user_authorized_to_read.
 
     mv_user_authorized_for_read = abap_true.
@@ -133,6 +123,57 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
+
+  method is_user_authorized_to_update.
+
+    mv_user_authorized_for_update = abap_true.
+
+    if ( mv_user_authorized_for_update eq abap_false ).
+
+      " User has no authorizations to update process type
+
+      raise exception type zcx_crm_order_api_exc
+        exporting
+          textid  = zcx_crm_order_api_exc=>not_authorized_for_update
+          ip_user = sy-uname.
+
+    endif.
+
+
+  endmethod.
+
+
+  method zif_custom_crm_order_create~create_attachment.
+
+    if ( mo_custom_crm_order_create is bound ).
+
+      mo_custom_crm_order_create->create_attachment(
+        exporting
+            ip_content = ip_content
+            ip_file_name = ip_file_name
+            ip_guid = ip_guid
+            ip_mime_type = ip_mime_type ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_custom_crm_order_create~create_text.
+
+    if ( mo_custom_crm_order_create is bound ).
+
+      mo_custom_crm_order_create->create_text(
+        exporting
+            ip_guid = ip_guid
+            ip_tdid = ip_tdid
+            ip_text = ip_text ).
+
+    endif.
+
+  endmethod.
+
+
   method zif_custom_crm_order_create~create_with_std_and_cust_flds.
 
     me->is_user_authorized_to_create(  ).
@@ -149,65 +190,6 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
-  method zif_custom_crm_order_init~set_status_profile.
-
-    if ( mo_custom_crm_order_init is bound ).
-
-      mo_custom_crm_order_init->set_status_profile( ip_status_profile ).
-
-    endif.
-
-  endmethod.
-
-  method zif_custom_crm_order_init~set_db_struct_fields_map.
-
-    if ( mo_custom_crm_order_init is bound ).
-
-      mo_custom_crm_order_init->set_db_struct_fields_map( it_db_struct_fields_map ).
-
-    endif.
-
-  endmethod.
-
-  method zif_custom_crm_order_init~set_custom_fields_db_table.
-
-    if ( mo_custom_crm_order_init is bound ).
-
-      mo_custom_crm_order_init->set_custom_fields_db_table(  ip_custom_fields_db_table ).
-
-    endif.
-
-  endmethod.
-
-  method zif_custom_crm_order_init~set_process_type.
-
-    if ( mo_custom_crm_order_init is bound ).
-
-      mo_custom_crm_order_init->set_process_type( ip_process_type ).
-
-    endif.
-
-  endmethod.
-
-  method zif_custom_crm_order_init~set_structure_name.
-
-    if ( mo_custom_crm_order_init is bound ).
-
-      mo_custom_crm_order_init->set_structure_name( ip_structure_name ).
-
-    endif.
-
-  endmethod.
-
-  method zif_custom_crm_order_init~set_sold_to_party.
-
-    if ( mo_custom_crm_order_init is bound ).
-
-      mo_custom_crm_order_init->set_sold_to_party( ip_sold_to_party ).
-
-    endif.
-
-  endmethod.
 
   method zif_custom_crm_order_init~set_crm_category1.
 
@@ -219,6 +201,7 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
+
   method zif_custom_crm_order_init~set_crm_category2.
 
     if ( mo_custom_crm_order_init is bound ).
@@ -227,6 +210,7 @@ class zcl_custom_crm_order_api_proxy implementation.
     endif.
 
   endmethod.
+
 
   method zif_custom_crm_order_init~set_crm_category3.
 
@@ -238,6 +222,7 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
+
   method zif_custom_crm_order_init~set_crm_category4.
 
     if ( mo_custom_crm_order_init is bound ).
@@ -247,6 +232,7 @@ class zcl_custom_crm_order_api_proxy implementation.
     endif.
 
   endmethod.
+
 
   method zif_custom_crm_order_init~set_crm_cat_schema.
 
@@ -258,19 +244,103 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
-  method zif_custom_crm_order_read~get_guids_list.
 
-    if ( mo_custom_crm_order_read is bound ).
+  method zif_custom_crm_order_init~set_custom_fields_db_table.
 
-      et_result = mo_custom_crm_order_read->get_guids_list(  ).
+    if ( mo_custom_crm_order_init is bound ).
+
+      mo_custom_crm_order_init->set_custom_fields_db_table(  ip_custom_fields_db_table ).
 
     endif.
 
   endmethod.
 
-  method zif_custom_crm_order_read~get_all_statuses_list.
+
+  method zif_custom_crm_order_init~set_db_struct_fields_map.
+
+    if ( mo_custom_crm_order_init is bound ).
+
+      mo_custom_crm_order_init->set_db_struct_fields_map( it_db_struct_fields_map ).
+
+    endif.
 
   endmethod.
+
+
+  method zif_custom_crm_order_init~set_process_type.
+
+    if ( mo_custom_crm_order_init is bound ).
+
+      mo_custom_crm_order_init->set_process_type( ip_process_type ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_custom_crm_order_init~set_sold_to_party.
+
+    if ( mo_custom_crm_order_init is bound ).
+
+      mo_custom_crm_order_init->set_sold_to_party( ip_sold_to_party ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_custom_crm_order_init~set_status_profile.
+
+    if ( mo_custom_crm_order_init is bound ).
+
+      mo_custom_crm_order_init->set_status_profile( ip_status_profile ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_custom_crm_order_init~set_structure_name.
+
+    if ( mo_custom_crm_order_init is bound ).
+
+      mo_custom_crm_order_init->set_structure_name( ip_structure_name ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_custom_crm_order_organizer~is_order_matching_to_filters.
+
+    if ( mo_custom_crm_order_read is bound ).
+
+      mo_custom_crm_order_organizer->is_order_matching_to_filters(
+       exporting
+           it_set_filters = it_set_filters
+           ir_entity = ir_entity
+       changing
+            cp_include_record = cp_include_record ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_custom_crm_order_organizer~sort_orders.
+
+    if ( mo_custom_crm_order_read is bound ).
+
+      er_entity = mo_custom_crm_order_organizer->sort_orders(
+        exporting
+            ir_entity = ir_entity
+            it_order = it_order ).
+
+    endif.
+
+
+  endmethod.
+
 
   method zif_custom_crm_order_read~get_all_priorities_list.
 
@@ -282,29 +352,27 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
-  method zif_custom_crm_order_read~get_standard_fields_by_guid.
+
+  method zif_custom_crm_order_read~get_all_statuses_list.
+
 
     if ( mo_custom_crm_order_read is bound ).
 
-      es_result = mo_custom_crm_order_read->get_standard_fields_by_guid( ip_guid ).
+      et_statuses = mo_custom_crm_order_read->get_all_statuses_list(  ).
 
     endif.
 
   endmethod.
 
-  method zif_custom_crm_order_read~get_custom_fields_by_guid.
 
-    if ( mo_custom_crm_order_read is bound ).
+  method zif_custom_crm_order_read~get_all_texts.
 
-      call method mo_custom_crm_order_read->get_custom_fields_by_guid
-        exporting
-          ip_guid   = ip_guid
-        importing
-          es_result = es_result.
-
-    endif.
+    mo_custom_crm_order_read->get_all_texts(
+    exporting ip_guid = ip_guid
+    importing et_texts = et_texts ).
 
   endmethod.
+
 
   method zif_custom_crm_order_read~get_attachments_list_by_guid.
 
@@ -321,20 +389,6 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
-  method zif_custom_crm_order_update~update_order.
-
-
-    me->is_user_authorized_to_update(  ).
-
-  endmethod.
-
-  method zif_custom_crm_order_read~get_all_texts.
-
-    mo_custom_crm_order_read->get_all_texts(
-    exporting ip_guid = ip_guid
-    importing et_texts = et_texts ).
-
-  endmethod.
 
   method zif_custom_crm_order_read~get_attachment_by_keys.
 
@@ -349,6 +403,7 @@ class zcl_custom_crm_order_api_proxy implementation.
     endif.
 
   endmethod.
+
 
   method zif_custom_crm_order_read~get_attachment_content_by_keys.
 
@@ -366,16 +421,49 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
-  method zif_custom_crm_order_create~create_attachment.
 
-    if ( mo_custom_crm_order_create is bound ).
+  method zif_custom_crm_order_read~get_custom_fields_by_guid.
 
-      mo_custom_crm_order_create->create_attachment(
+    if ( mo_custom_crm_order_read is bound ).
+
+      call method mo_custom_crm_order_read->get_custom_fields_by_guid
         exporting
-            ip_content = ip_content
-            ip_file_name = ip_file_name
-            ip_guid = ip_guid
-            ip_mime_type = ip_mime_type ).
+          ip_guid   = ip_guid
+        importing
+          es_result = es_result.
+
+    endif.
+
+  endmethod.
+
+
+  method zif_custom_crm_order_read~get_guids_list.
+
+    if ( mo_custom_crm_order_read is bound ).
+
+      et_result = mo_custom_crm_order_read->get_guids_list(  ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_custom_crm_order_read~get_last_text.
+
+    if ( mo_custom_crm_order_read is bound ).
+
+      es_text = mo_custom_crm_order_read->get_last_text( exporting ip_guid = ip_guid ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_custom_crm_order_read~get_standard_fields_by_guid.
+
+    if ( mo_custom_crm_order_read is bound ).
+
+      es_result = mo_custom_crm_order_read->get_standard_fields_by_guid( ip_guid ).
 
     endif.
 
@@ -396,31 +484,19 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
-  method zif_custom_crm_order_create~create_text.
 
-    if ( mo_custom_crm_order_create is bound ).
+  method zif_custom_crm_order_update~update_order.
 
-      mo_custom_crm_order_create->create_text(
-        exporting
-            ip_guid = ip_guid
-            ip_tdid = ip_tdid
-            ip_text = ip_text ).
+    me->is_user_authorized_to_update(  ).
 
-    endif.
+    if ( mv_user_authorized_for_update eq abap_true ) and ( mo_custom_crm_order_update is bound ).
 
-  endmethod.
-
-
-
-  method zif_custom_crm_order_read~get_last_text.
-
-    if ( mo_custom_crm_order_read is bound ).
-
-      es_text = mo_custom_crm_order_read->get_last_text( exporting ip_guid = ip_guid ).
+      mo_custom_crm_order_update->update_order(
+       exporting
+        ir_entity = ir_entity
+        ip_guid = ip_guid ).
 
     endif.
 
   endmethod.
-
-
-endclass.
+ENDCLASS.

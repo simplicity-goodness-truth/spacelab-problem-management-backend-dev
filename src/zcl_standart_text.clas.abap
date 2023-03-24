@@ -16,6 +16,14 @@ class zcl_standart_text definition
   private section.
     data: mt_text_lines type table of tline.
 
+    class-data: mo_log               type ref to zcl_logger_to_app_log,
+                mv_app_log_object    type balobj_d,
+                mv_app_log_subobject type balsubobj.
+
+    methods set_app_logger
+      raising
+        zcx_slpm_configuration_exc.
+
 endclass.
 
 class zcl_standart_text implementation.
@@ -47,7 +55,7 @@ class zcl_standart_text implementation.
 
       endif.
 
-      replace <is_variable_value>-variable in lv_text_for_processing with lv_text_token.
+      replace all occurrences of <is_variable_value>-variable in lv_text_for_processing with lv_text_token.
 
     endloop.
 
@@ -94,9 +102,27 @@ class zcl_standart_text implementation.
 
     if sy-subrc ne 0.
 
-      " Process error
+      data lv_log_record_text type string.
+
+      lv_log_record_text = |{ sy-msgid  }| && |{ sy-msgty }| && |{ sy-msgno }| &&
+        |{ sy-msgv1 }| && |{ sy-msgv2 }| && |{ sy-msgv3 }| && |{ sy-msgv4 }|.
+
+      mo_log->zif_logger~err( lv_log_record_text  ).
 
     endif.
+
+  endmethod.
+
+  method set_app_logger.
+
+    mv_app_log_object = 'ZTEXTS'.
+    mv_app_log_subobject = 'ZREADTEXTS'.
+
+    mo_log = zcl_logger_to_app_log=>get_instance( ).
+    mo_log->set_object_and_subobject(
+          exporting
+            ip_object    =   mv_app_log_object
+            ip_subobject =   mv_app_log_subobject ).
 
   endmethod.
 

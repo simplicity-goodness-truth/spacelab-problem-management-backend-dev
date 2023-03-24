@@ -167,4 +167,8 @@ class zcl_logger_to_app_log implementation.
   endmethod.
 
 
+  method zif_logger~warn.
+
+  endmethod.
+
 endclass.

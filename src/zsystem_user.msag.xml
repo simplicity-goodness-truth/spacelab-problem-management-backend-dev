@@ -3,22 +3,16 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <T100A>
-    <ARBGB>ZSLPM_ODATA</ARBGB>
+    <ARBGB>ZSYSTEM_USER</ARBGB>
     <MASTERLANG>E</MASTERLANG>
-    <STEXT>SpaceLab Problem Management Message Class: OData</STEXT>
+    <STEXT>System User</STEXT>
    </T100A>
    <T100>
     <T100>
      <SPRSL>E</SPRSL>
-     <ARBGB>ZSLPM_ODATA</ARBGB>
-     <MSGNR>000</MSGNR>
-     <TEXT>OData: GUID has not been provided for entity &amp;1</TEXT>
-    </T100>
-    <T100>
-     <SPRSL>E</SPRSL>
-     <ARBGB>ZSLPM_ODATA</ARBGB>
+     <ARBGB>ZSYSTEM_USER</ARBGB>
      <MSGNR>001</MSGNR>
-     <TEXT>OData: Filter value not provided for entity &amp;1</TEXT>
+     <TEXT>User Master: Business Partner not found for user &amp;1</TEXT>
     </T100>
    </T100>
   </asx:values>

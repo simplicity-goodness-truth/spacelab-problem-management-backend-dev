@@ -8,20 +8,44 @@ class zcl_email_messenger definition
     methods constructor.
   protected section.
   private section.
-    methods prepare_email_body
+    methods: prepare_email_body
       importing
-        ip_message_body_text type string.
+        ip_message_body_text type string,
+      set_app_logger
+        raising
+          zcx_slpm_configuration_exc.
 
     data: mo_email_client  type ref to cl_bcs,
-                mt_email_body    type bcsy_text,
-                mv_email_subject type so_obj_des,
-                mo_email         type ref to cl_document_bcs.
+          mt_email_body    type bcsy_text,
+          mv_email_subject type so_obj_des,
+          mo_email         type ref to cl_document_bcs.
+
+
+    class-data: mo_log               type ref to zcl_logger_to_app_log,
+                mv_app_log_object    type balobj_d,
+                mv_app_log_subobject type balsubobj.
 
 endclass.
 
 class zcl_email_messenger implementation.
 
+  method set_app_logger.
+
+    mv_app_log_object = 'ZEMAIL'.
+
+    mo_log = zcl_logger_to_app_log=>get_instance( ).
+    mo_log->set_object_and_subobject(
+          exporting
+            ip_object    =   mv_app_log_object
+            ip_subobject =   mv_app_log_subobject ).
+
+  endmethod.
+
   method zif_messenger~set_message_body.
+
+    data lv_log_record_text type string.
+
+    mv_app_log_subobject = 'ZCOMPOSITION'.
 
     me->prepare_email_body( ip_message_body_text ).
 
@@ -37,9 +61,13 @@ class zcl_email_messenger implementation.
           mo_email_client->set_document( mo_email ).
 
         catch cx_document_bcs into data(lx_doc_bcs).
-          "Error handling
+          lv_log_record_text = lx_doc_bcs->get_text(  ) .
+          mo_log->zif_logger~err( lv_log_record_text  ).
+
         catch cx_send_req_bcs into data(lx_req_bsc).
-          "Error handling
+          lv_log_record_text = lx_req_bsc->get_text(  ) .
+          mo_log->zif_logger~err( lv_log_record_text  ).
+
       endtry.
 
     endif.
@@ -47,6 +75,10 @@ class zcl_email_messenger implementation.
   endmethod.
 
   method zif_messenger~set_message_attachments.
+
+    data lv_log_record_text type string.
+
+    mv_app_log_subobject = 'ZCOMPOSITION'.
 
     try.
 
@@ -63,14 +95,18 @@ class zcl_email_messenger implementation.
         endloop.
 
       catch cx_document_bcs into data(lx_doc_bcs).
-        "Error handling
+        lv_log_record_text = lx_doc_bcs->get_text(  ) .
+        mo_log->zif_logger~err( lv_log_record_text  ).
     endtry.
 
   endmethod.
 
   method zif_messenger~set_message_sender.
 
-    data lv_sender_address type so_recname.
+    data: lv_sender_address  type so_recname,
+          lv_log_record_text type string.
+
+    mv_app_log_subobject = 'ZCOMPOSITION'.
 
     try.
 
@@ -83,11 +119,16 @@ class zcl_email_messenger implementation.
         ).
 
       catch cx_send_req_bcs into data(lx_req_bsc).
-        "Error handling
+        lv_log_record_text = lx_req_bsc->get_text(  ) .
+        mo_log->zif_logger~err( lv_log_record_text  ).
+
       catch cx_document_bcs into data(lx_doc_bcs).
-        "Error handling
+        lv_log_record_text = lx_doc_bcs->get_text(  ) .
+        mo_log->zif_logger~err( lv_log_record_text  ).
+
       catch cx_address_bcs  into data(lx_add_bcs).
-        "Error handling
+        lv_log_record_text = lx_add_bcs->get_text(  ) .
+        mo_log->zif_logger~err( lv_log_record_text  ).
 
     endtry.
 
@@ -96,7 +137,10 @@ class zcl_email_messenger implementation.
 
   method zif_messenger~set_message_recepients.
 
-    data lv_recepient_address type so_recname.
+    data: lv_recepient_address type so_recname,
+          lv_log_record_text   type string.
+
+    mv_app_log_subobject = 'ZCOMPOSITION'.
 
     try.
 
@@ -114,11 +158,17 @@ class zcl_email_messenger implementation.
         endloop.
 
       catch cx_send_req_bcs into data(lx_req_bsc).
-        "Error handling
+        lv_log_record_text = lx_req_bsc->get_text(  ) .
+        mo_log->zif_logger~err( lv_log_record_text  ).
+
       catch cx_document_bcs into data(lx_doc_bcs).
-        "Error handling
+        lv_log_record_text = lx_doc_bcs->get_text(  ) .
+        mo_log->zif_logger~err( lv_log_record_text  ).
+
       catch cx_address_bcs  into data(lx_add_bcs).
-        "Error handling
+        lv_log_record_text = lx_add_bcs->get_text(  ) .
+        mo_log->zif_logger~err( lv_log_record_text  ).
+
 
     endtry.
 
@@ -126,15 +176,18 @@ class zcl_email_messenger implementation.
 
   method zif_messenger~send_message.
 
+    data lv_log_record_text type string.
+
+    mv_app_log_subobject = 'ZSENDING'.
+
     try.
 
         data(lv_sent_to_all) = mo_email_client->send( ).
         commit work.
 
       catch cx_send_req_bcs into data(lx_req_bsc).
-
-        write lx_req_bsc->get_text(  ).
-        "Error handling
+        lv_log_record_text = lx_req_bsc->get_text(  ) .
+        mo_log->zif_logger~err( lv_log_record_text  ).
 
     endtry.
 
@@ -142,9 +195,17 @@ class zcl_email_messenger implementation.
 
   method constructor.
 
+    data lv_log_record_text type string.
+
+    mv_app_log_subobject = 'ZCOMPOSITION'.
+
     try.
         mo_email_client = cl_bcs=>create_persistent(  ).
+
       catch cx_send_req_bcs into data(lx_req_bsc).
+        lv_log_record_text = lx_req_bsc->get_text(  ) .
+        mo_log->zif_logger~err( lv_log_record_text  ).
+
     endtry.
 
   endmethod.

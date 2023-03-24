@@ -8,6 +8,9 @@ class zcl_slpm_dpc_ext definition
     methods /iwbep/if_mgw_appl_srv_runtime~create_stream redefinition.
     methods /iwbep/if_mgw_appl_srv_runtime~delete_stream redefinition.
   protected section.
+    methods systemuserset_get_entityset redefinition.
+    methods statusset_get_entityset redefinition.
+    methods problemset_update_entity redefinition.
 
     methods priorityset_get_entityset redefinition.
     methods problemset_create_entity redefinition.
@@ -44,7 +47,19 @@ class zcl_slpm_dpc_ext definition
         exporting
           ep_guid    type crmt_object_guid
           ep_loio    type string
-          ep_phio    type string.
+          ep_phio    type string,
+      get_filter_value
+        importing
+          !io_tech_request_context type ref to /iwbep/if_mgw_req_entityset
+          !ip_property             type string
+        returning
+          value(ep_value)          type string ,
+      get_filter_select_options
+        importing
+          !ip_property             type string
+          !io_tech_request_context type ref to /iwbep/if_mgw_req_entityset
+        returning
+          value(et_select_options) type /iwbep/t_cod_select_options .
 
 endclass.
 
@@ -88,21 +103,27 @@ class zcl_slpm_dpc_ext implementation.
   method problemset_get_entityset.
 
     data: lo_slpm_data_provider type ref to zif_slpm_data_manager,
-          lv_exception_text     type bapi_msg.
+          lv_exception_text     type bapi_msg,
+          lt_set_filters        type /iwbep/t_mgw_select_option.
+
+    lt_set_filters = io_tech_request_context->get_filter( )->get_filter_select_options( ).
 
     try.
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        et_entityset = lo_slpm_data_provider->get_problems_list(  ).
+        et_entityset = lo_slpm_data_provider->get_problems_list(
+            exporting
+            it_filters = lt_set_filters
+            it_order = it_order ).
 
-      catch zcx_slpm_data_manager_exc zcx_crm_order_api_exc  zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_data_manager_exc zcx_crm_order_api_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
 
-
   endmethod.
-
 
   method problemset_get_entity.
 
@@ -128,7 +149,9 @@ class zcl_slpm_dpc_ext implementation.
 
         er_entity = lo_slpm_data_provider->get_problem( lv_guid ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -141,7 +164,12 @@ class zcl_slpm_dpc_ext implementation.
       lt_texts              type zcl_slpm_mpc=>tt_text,
       ls_texts              like line of et_entityset,
       lo_slpm_data_provider type ref to zif_slpm_data_manager,
-      lv_guid               type crmt_object_guid.
+      lv_guid               type crmt_object_guid,
+      lt_filter_tdid        type /iwbep/t_cod_select_options.
+
+
+    lt_filter_tdid = get_filter_select_options( io_tech_request_context  = io_tech_request_context
+                                              ip_property = 'TDID' ).
 
     try.
 
@@ -164,13 +192,15 @@ class zcl_slpm_dpc_ext implementation.
             exporting ip_guid = lv_guid
             importing et_texts = lt_texts ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
 
 
-    loop at lt_texts assigning field-symbol(<ls_text>) .
+    loop at lt_texts assigning field-symbol(<ls_text>) where tdid in lt_filter_tdid.
 
       ls_texts = <ls_text>.
 
@@ -201,7 +231,9 @@ class zcl_slpm_dpc_ext implementation.
               importing
               et_attachments_list = et_entityset ).
 
-        catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+        catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+            zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+            zcx_system_user_exc into data(lcx_process_exception).
           raise_exception( lcx_process_exception->get_text(  ) ).
 
       endtry.
@@ -235,7 +267,9 @@ class zcl_slpm_dpc_ext implementation.
 
         er_entity = lo_slpm_data_provider->get_attachment( exporting ip_guid = lv_guid ip_loio = lv_loio ip_phio = lv_phio ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -298,7 +332,9 @@ class zcl_slpm_dpc_ext implementation.
           changing
             cr_data = er_stream.
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -368,7 +404,9 @@ class zcl_slpm_dpc_ext implementation.
         ip_mime_type = lv_mime_type
         ip_guid = lv_guid ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -404,7 +442,9 @@ class zcl_slpm_dpc_ext implementation.
                 ip_loio = lv_loio
                 ip_phio = lv_phio ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -440,7 +480,9 @@ class zcl_slpm_dpc_ext implementation.
                 ip_loio = lv_loio
                 ip_phio = lv_phio ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
 
@@ -483,7 +525,9 @@ class zcl_slpm_dpc_ext implementation.
 
         er_entity = lo_slpm_data_provider->get_last_text( exporting ip_guid = lv_guid ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -559,7 +603,9 @@ class zcl_slpm_dpc_ext implementation.
 
         er_entity = lo_slpm_data_provider->create_problem( er_entity ).
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -610,7 +656,127 @@ class zcl_slpm_dpc_ext implementation.
         et_entityset = lt_priorities.
 
 
-      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
+
+  endmethod.
+
+
+  method problemset_update_entity.
+
+    data: lo_slpm_data_provider type ref to zif_slpm_data_manager,
+          lv_guid               type crmt_object_guid.
+
+    loop at it_key_tab assigning field-symbol(<ls_guid>).
+      move <ls_guid>-value to lv_guid.
+    endloop.
+
+    io_data_provider->read_entry_data( importing es_data = er_entity ).
+
+    try.
+
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        er_entity = lo_slpm_data_provider->update_problem(
+        exporting
+         ip_guid = lv_guid
+         is_problem = er_entity ).
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
+
+
+  endmethod.
+
+
+  method statusset_get_entityset.
+
+    data: lo_slpm_data_provider type ref to zif_slpm_data_manager,
+          lv_status             type j_estat.
+
+    try.
+
+        lv_status = get_filter_value(
+           exporting
+             io_tech_request_context = io_tech_request_context
+             ip_property             = 'CODE').
+
+        if lv_status is initial.
+
+          raise exception type zcx_slpm_odata_exc
+            exporting
+              textid    = zcx_slpm_odata_exc=>filter_not_provided_for_entity
+              mv_entity = iv_entity_name.
+
+        endif.
+
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        et_entityset = lo_slpm_data_provider->get_list_of_possible_statuses( lv_status ).
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
+
+
+
+  endmethod.
+
+  method get_filter_value.
+
+    data  rg_filter_so     type /iwbep/t_cod_select_options.
+
+    data(it_filter_so) = io_tech_request_context->get_filter( )->get_filter_select_options( ).
+
+    if line_exists( it_filter_so[ property = ip_property ] ).
+
+      rg_filter_so = it_filter_so[ property = ip_property ]-select_options.
+      loop at rg_filter_so assigning field-symbol(<rs_filter_so>).
+        ep_value = <rs_filter_so>-low.
+      endloop.
+
+    endif.
+
+  endmethod.
+
+  method get_filter_select_options.
+
+    data(it_filter_so) = io_tech_request_context->get_filter( )->get_filter_select_options( ).
+
+    if line_exists( it_filter_so[ property = ip_property ] ).
+
+      et_select_options = it_filter_so[ property = ip_property ]-select_options.
+
+    endif.
+
+  endmethod.
+
+  method systemuserset_get_entityset.
+
+    data: lo_system_user type ref to zif_system_user,
+          ls_entity      like line of et_entityset.
+
+    try.
+        lo_system_user = new zcl_system_user( sy-uname ).
+
+        ls_entity-username = sy-uname.
+        ls_entity-fullname = lo_system_user->get_fullname(  ).
+        ls_entity-businesspartner = lo_system_user->get_businesspartner(  ).
+
+        append ls_entity to et_entityset.
+
+      catch zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.

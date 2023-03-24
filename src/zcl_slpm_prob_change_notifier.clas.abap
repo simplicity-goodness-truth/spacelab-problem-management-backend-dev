@@ -1,26 +1,39 @@
 class zcl_slpm_prob_change_notifier definition
   public
-  inheriting from zcl_crm_order_change_notifier
-  final
+
   create public .
 
   public section.
+    interfaces zif_crm_order_change_notifier .
     methods constructor
       importing
-        is_problem_old_state type zcrm_order_ts
-        is_problem_new_state type zcrm_order_ts.
+        io_active_configuration type ref to zif_slpm_configuration
+        is_problem_old_state    type zcrm_order_ts_sl_problem
+        is_problem_new_state    type zcrm_order_ts_sl_problem
+      raising
+        zcx_slpm_configuration_exc
+        zcx_assistant_utilities_exc.
 
-    methods: zif_crm_order_change_notifier~notify redefinition.
+    methods: get_problem_new_state
+      returning
+        value(rs_problem_new_state) type zcrm_order_ts_sl_problem,
+      get_problem_old_state
+        returning
+          value(rs_problem_old_state) type zcrm_order_ts_sl_problem.
 
   protected section.
   private section.
     data:
       ms_slpm_emails_for_statuses type zslpm_stat_email,
-      ms_problem_old_state        type zcrm_order_ts,
-      ms_problem_new_state        type zcrm_order_ts,
-      mt_variables_values         type zst_text_tt_variables_values.
+      ms_problem_old_state        type zcrm_order_ts_sl_problem,
+      ms_problem_new_state        type zcrm_order_ts_sl_problem,
+      mt_variables_values         type zst_text_tt_variables_values,
+      mo_active_configuration     type ref to zif_slpm_configuration.
 
-    class-data: mv_sender_email_address type zmessenger_address.
+    class-data: mv_sender_email_address type zmessenger_address,
+                mo_log                  type ref to zcl_logger_to_app_log,
+                mv_app_log_object       type balobj_d,
+                mv_app_log_subobject    type balsubobj.
 
     methods: notify_by_email,
       get_stat_dependant_email_rules,
@@ -34,10 +47,11 @@ class zcl_slpm_prob_change_notifier definition
 
       get_email_rule
         importing
-          ip_email_rule      type char64
+          ip_email_rule          type char64
         exporting
-          ep_email_subj_text type tdobname
-          ep_email_body_text type tdobname,
+          ep_email_internal_flag type char1
+          ep_email_subj_text     type tdobname
+          ep_email_body_text     type tdobname,
 
       get_compiled_text
         importing
@@ -52,7 +66,11 @@ class zcl_slpm_prob_change_notifier definition
           ip_email_body             type string
           ip_email_subject          type so_obj_des,
 
-      fill_variables_values,
+      fill_variables_values
+        importing
+          ip_email_internal_flag type char1 optional
+        raising
+          zcx_assistant_utilities_exc,
 
       get_email_address
         importing
@@ -61,29 +79,78 @@ class zcl_slpm_prob_change_notifier definition
           value(rp_email_address) type zmessenger_address,
 
       fill_problem_details_html
+        importing
+          ip_email_internal_flag    type char1 optional
         returning
-          value(rp_problem_details) type string.
+          value(rp_problem_details) type string
+        raising
+          zcx_assistant_utilities_exc,
+
+      get_config_parameter_value
+        importing
+          ip_param        type char50
+        returning
+          value(rp_value) type text200
+        raising
+          zcx_slpm_configuration_exc,
+
+      set_app_logger
+        raising
+          zcx_slpm_configuration_exc.
 
     class-methods set_sender_email_address
       importing
-        ip_sender_email_address type zmessenger_address.
+        ip_sender_email_address type zmessenger_address
+      raising
+        zcx_slpm_configuration_exc.
 
 endclass.
 
 class zcl_slpm_prob_change_notifier implementation.
 
+  method get_problem_new_state.
+    rs_problem_new_state = me->ms_problem_new_state.
+  endmethod.
+
+  method get_problem_old_state.
+    rs_problem_old_state = me->ms_problem_old_state.
+  endmethod.
+
   method constructor.
 
-    super->constructor(
-        is_order_new_state = is_problem_new_state
-        is_order_old_state = is_problem_old_state ).
+    ms_problem_new_state = is_problem_new_state.
+    ms_problem_old_state = is_problem_old_state.
 
-    me->ms_problem_new_state = me->get_order_new_state(  ).
-    me->ms_problem_old_state = me->get_order_old_state(  ).
+    mo_active_configuration = io_active_configuration.
 
-    me->fill_variables_values( ).
+    me->set_app_logger(  ).
 
-    me->set_sender_email_address( 'andrew.kusnetsov@mail.ru' ).
+    me->ms_problem_new_state = me->get_problem_new_state(  ).
+    me->ms_problem_old_state = me->get_problem_old_state(  ).
+
+    "  me->fill_variables_values( ).
+
+    me->set_sender_email_address( get_config_parameter_value( 'email_sender_address' ) ).
+
+
+  endmethod.
+
+  method set_app_logger.
+
+    mv_app_log_object = mo_active_configuration->get_parameter_value( 'APP_LOG_OBJECT' ).
+    mv_app_log_subobject = 'ZNOTIFICATIONS'.
+
+    mo_log = zcl_logger_to_app_log=>get_instance( ).
+    mo_log->set_object_and_subobject(
+          exporting
+            ip_object    =   mv_app_log_object
+            ip_subobject =   mv_app_log_subobject ).
+
+  endmethod.
+
+  method get_config_parameter_value.
+
+    rp_value = mo_active_configuration->get_parameter_value( ip_param ).
 
   endmethod.
 
@@ -107,8 +174,8 @@ class zcl_slpm_prob_change_notifier implementation.
 
   method get_email_rule.
 
-    select single sttextsubj sttextbody
-        into ( ep_email_subj_text, ep_email_body_text )
+    select single internal sttextsubj sttextbody
+        into ( ep_email_internal_flag, ep_email_subj_text, ep_email_body_text )
         from zslpm_email_rule
         where rulename = ip_email_rule.
 
@@ -129,7 +196,8 @@ class zcl_slpm_prob_change_notifier implementation.
           lv_method_name            type string,
           lv_email_rule             type char64,
           ptab                      type abap_parmbind_tab,
-          lv_receiver_email_address type zmessenger_address.
+          lv_receiver_email_address type zmessenger_address,
+          lv_log_record_text        type string.
 
     field-symbols: <fs_structure> type any,
                    <fs_value>     type any.
@@ -184,6 +252,10 @@ class zcl_slpm_prob_change_notifier implementation.
               ptab.
 
           catch cx_sy_dyn_call_error into data(lcx_process_exception).
+
+            lv_log_record_text = lcx_process_exception->get_text(  ) .
+            mo_log->zif_logger~err( lv_log_record_text  ).
+
             return.
         endtry.
 
@@ -199,10 +271,10 @@ class zcl_slpm_prob_change_notifier implementation.
       ( variable = '&REQUESTERNAME' value = ms_problem_new_state-requestorfullname )
       ( variable = '&PROBMLEMID' value = ms_problem_new_state-objectid opentag = '<STRONG>' closetag = '</STRONG>' )
       ( variable = '&PROCESSORNAME' value = ms_problem_new_state-processorfullname )
-      ( variable = '&FIELDS' value = me->fill_problem_details_html(  ) )
+      ( variable = '&STATUSOLD' value = ms_problem_old_state-statustext opentag = '<STRONG>' closetag = '</STRONG>' )
+      ( variable = '&STATUSNEW' value = ms_problem_new_state-statustext opentag = '<STRONG>' closetag = '</STRONG>' )
+      ( variable = '&FIELDS' value = me->fill_problem_details_html( ip_email_internal_flag  ) )
     ).
-
-
 
   endmethod.
 
@@ -210,31 +282,38 @@ class zcl_slpm_prob_change_notifier implementation.
 
     data: lv_email_subj_text_name type tdobname,
           lv_email_body_text_name type tdobname,
+          lv_email_internal_flag  type char1,
           lv_email_body           type string,
           lv_email_subject        type so_obj_des.
 
-    me->get_email_rule(
-       exporting
-           ip_email_rule = ip_email_rule
-           importing
-           ep_email_body_text = lv_email_body_text_name
-           ep_email_subj_text = lv_email_subj_text_name ).
+    if ip_receiver_email_address is not initial.
 
+      me->get_email_rule(
+         exporting
+             ip_email_rule = ip_email_rule
+             importing
+             ep_email_internal_flag = lv_email_internal_flag
+             ep_email_body_text = lv_email_body_text_name
+             ep_email_subj_text = lv_email_subj_text_name ).
 
-    lv_email_subject = me->get_compiled_text(
-        exporting
-            ip_text_name = lv_email_subj_text_name ).
+      me->fill_variables_values( lv_email_internal_flag ).
 
-    lv_email_body = me->get_compiled_text(
-        exporting
-            ip_use_tags = abap_true
-            ip_text_name = lv_email_body_text_name ).
+      lv_email_subject = me->get_compiled_text(
+          exporting
+              ip_text_name = lv_email_subj_text_name ).
 
-    me->send_email(
-        exporting
-            ip_receiver_email_address = ip_receiver_email_address
-            ip_email_body = lv_email_body
-            ip_email_subject = lv_email_subject ).
+      lv_email_body = me->get_compiled_text(
+          exporting
+              ip_use_tags = abap_true
+              ip_text_name = lv_email_body_text_name ).
+
+      me->send_email(
+          exporting
+              ip_receiver_email_address = ip_receiver_email_address
+              ip_email_body = lv_email_body
+              ip_email_subject = lv_email_subject ).
+
+    endif.
 
   endmethod.
 
@@ -314,12 +393,15 @@ class zcl_slpm_prob_change_notifier implementation.
     types: begin of ty_fields_to_fill,
              name        type name_komp,
              translation type char64,
+             internal    type char1,
            end of ty_fields_to_fill.
 
 
     data: lt_fields_to_fill type table of ty_fields_to_fill,
           lo_structure_ref  type ref to data,
-          lr_entity         type ref to data.
+          lr_entity         type ref to data,
+          lo_descr_ref      type ref to cl_abap_typedescr,
+          lv_text_token     type string.
 
 
     field-symbols: <fs_structure> type any,
@@ -327,13 +409,16 @@ class zcl_slpm_prob_change_notifier implementation.
 
     lt_fields_to_fill = value #(
 
-        ( name = 'DESCRIPTION' translation = 'Название/тема')
-        ( name = 'OBJECTID' translation = 'Номер')
-        ( name = 'PRIORITYTEXT' translation = 'Приоритет')
-        ( name = 'PRODUCTTEXT' translation = 'Тип сервиса')
-        ( name = 'REQUESTORCOMPANY' translation = 'Компания')
-        ( name = 'REQUESTORFULLNAME' translation = 'Автор')
-        ( name = 'STATUSTEXT' translation = 'Статус' )
+        ( name = 'DESCRIPTION' translation = 'Название/тема' internal = '' )
+        ( name = 'OBJECTID' translation = 'Номер' internal = '' )
+        ( name = 'PRIORITYTEXT' translation = 'Приоритет' internal = '' )
+        ( name = 'PRODUCTTEXT' translation = 'Тип сервиса' internal = '' )
+        ( name = 'REQUESTORCOMPANY' translation = 'Компания' internal = '' )
+        ( name = 'REQUESTORFULLNAME' translation = 'Автор' internal = '' )
+        ( name = 'CREATED_AT' translation = 'Дата создания (временная зона системы)' internal = '' )
+        ( name = 'PROCESSORFULLNAME' translation = 'Обработчик' internal = 'X' )
+        ( name = 'IRT_TIMESTAMP' translation = 'Время реакции' internal = 'X' )
+        ( name = 'MPT_TIMESTAMP' translation = 'Максимальное время обработки' internal = 'X' )
     ).
 
     get reference of ms_problem_new_state into lr_entity.
@@ -347,16 +432,43 @@ class zcl_slpm_prob_change_notifier implementation.
 
     loop at lt_fields_to_fill assigning field-symbol(<ls_field>).
 
+
       if <fs_value> is assigned.
         unassign <fs_value>.
       endif.
 
+      clear lv_text_token.
+
       assign component <ls_field>-name of structure <fs_structure> to <fs_value>.
 
-      if <fs_value> is not initial.
+      if ( <fs_value> is not initial ).
+
+        if ( <ls_field>-internal = 'X' ).
+
+          if ip_email_internal_flag ne 'X'.
+
+            continue.
+
+          endif.
+
+        endif.
+
+        lo_descr_ref = cl_abap_typedescr=>describe_by_data( <fs_value> ).
+
+        lv_text_token = <fs_value>.
+
+        " Conversion of a timestamp data types:
+        " yyyymmddhhmmss -> dd.mm.yyyy hh:mm:ss
+
+        if ( lo_descr_ref->absolute_name eq '\TYPE=COMT_CREATED_AT_USR' ) or
+            ( lo_descr_ref->absolute_name eq '\TYPE=CRMT_DATE_TIMESTAMP_FROM' ) .
+
+          lv_text_token = zcl_assistant_utilities=>format_timestamp( <fs_value> ).
+
+        endif.
 
         rp_problem_details = |{ rp_problem_details }| &&
-        |{ <ls_field>-translation }| && |:| && | | && |{ <fs_value> }| &&
+        |{ <ls_field>-translation }| && |:| && | | && |{ lv_text_token }| &&
         |<br/>|.
 
       endif.
