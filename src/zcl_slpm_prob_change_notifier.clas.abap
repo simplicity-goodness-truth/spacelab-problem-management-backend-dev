@@ -43,7 +43,9 @@ class zcl_slpm_prob_change_notifier definition
       notify_by_process_role
         importing
           ip_email_rule             type char64
-          ip_receiver_email_address type zmessenger_address,
+          ip_receiver_email_address type zmessenger_address
+        raising
+          zcx_assistant_utilities_exc,
 
       get_email_rule
         importing
@@ -364,7 +366,7 @@ class zcl_slpm_prob_change_notifier implementation.
 
     data lo_bp_address_book type ref to zif_contacts_book.
 
-    lo_bp_address_book = new zcl_bp_contacts_book( switch #( ip_process_role
+    lo_bp_address_book = new zcl_bp_master_data( switch #( ip_process_role
 
         when 'REQUESTER'    then ms_problem_new_state-requestorbusinesspartner
         when 'PROCESSOR'    then ms_problem_new_state-processorbusinesspartner

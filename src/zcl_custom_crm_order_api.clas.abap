@@ -134,7 +134,6 @@ class zcl_custom_crm_order_api implementation.
       lt_status                type standard table of tj30t,
       lt_partner               type crmt_partner_external_wrkt,
       lv_bp_num                type bu_partner,
-      "  lv_requestor_uname       type crmt_erms_agent_name,
       lv_processor_uname       type crmt_erms_agent_name,
       lv_requestor_id          type uname,
       lv_requestor_dep         type ad_dprtmnt,
@@ -144,7 +143,9 @@ class zcl_custom_crm_order_api implementation.
       lt_product_data          type crmt_orderadm_i_wrkt,
       ls_product_data          type crmt_orderadm_i_wrk,
       ls_subject               type  crmt_subject_wrk,
-      lt_subjects              type crmt_subject_wrkt.
+      lt_subjects              type crmt_subject_wrkt,
+      lt_appointments          type crmt_appointment_wrkt,
+      ls_appointment           type crmt_appointment_wrk.
 
     " Getting request instance
 
@@ -195,7 +196,7 @@ class zcl_custom_crm_order_api implementation.
 
             " Get a Process Business Partner name
 
-            es_result-processorfullname = new zcl_bp_contacts_book( lv_bp_num )->zif_contacts_book~get_full_name(  ).
+            es_result-processorfullname = new zcl_bp_master_data( lv_bp_num )->zif_contacts_book~get_full_name(  ).
 
             " Requester
 
@@ -205,7 +206,7 @@ class zcl_custom_crm_order_api implementation.
 
             " Get a Requester Business Partner name
 
-            es_result-requestorfullname = new zcl_bp_contacts_book( lv_bp_num )->zif_contacts_book~get_full_name(  ).
+            es_result-requestorfullname = new zcl_bp_master_data( lv_bp_num )->zif_contacts_book~get_full_name(  ).
 
             " Support Team
 
@@ -322,44 +323,32 @@ class zcl_custom_crm_order_api implementation.
       es_result-catschemaname = lo_categorization_schema->get_asp_label(  ).
       es_result-catschemaname = lo_categorization_schema->get_hierarchy_cat_label( ls_subject-cat_id ).
 
-**********************************************************************
-*  Old way of search
-**********************************************************************
-*      data: lv_catschemaguid     type crm_erms_cat_guid,
-*            lv_catschemanodeguid type crm_erms_cat_guid,
-*            lt_category_tree     type table of bsp_wd_dropdown_line,
-*            ls_category_line     type bsp_wd_dropdown_line.
-*
-*      get_category_and_aspect_guids(
-*        exporting
-*            ip_asp_id = ls_subject-asp_id
-*            ip_cat_id = ls_subject-cat_id
-*        importing
-*            ep_asp_guid = lv_catschemaguid
-*            ep_cat_guid = lv_catschemanodeguid ).
-*
-*      lt_category_tree = get_category_tree(  exporting ip_asp_guid = lv_catschemaguid ip_cat_guid = lv_catschemanodeguid ).
-*
-*      ls_category_line = lt_category_tree[ 1 ].
-*
-*      if ls_category_line is not initial.
-*
-*        es_result-catschemaname = ls_category_line-value.
-*
-*      endif.
-*
-*      clear ls_category_line.
-*
-*      ls_category_line = lt_category_tree[ 2 ].
-*
-*      if ls_category_line is not initial.
-*
-*        es_result-catschemanodename = ls_category_line-value.
-*
-*      endif.
-
-
     endif.
+
+
+    " First response timestamp, time and date (duration 'SMIN_RESPF')
+
+    lo_cl_ags_crm_1o_api->get_appointments(
+     importing
+         et_appointment = lt_appointments ).
+
+    try.
+
+        ls_appointment = lt_appointments[ appt_type = 'SMIN_RESPF' ].
+
+        if ls_appointment is not initial.
+
+          es_result-firstreactiondate = ls_appointment-date_from.
+          es_result-firstreactiontime = ls_appointment-time_from.
+          es_result-firstreactiontimestamp = ls_appointment-timestamp_from.
+          es_result-firstreactiontimezone = ls_appointment-timezone_from.
+
+        endif.
+
+      catch cx_sy_itab_line_not_found.
+
+    endtry.
+
 
   endmethod.
 

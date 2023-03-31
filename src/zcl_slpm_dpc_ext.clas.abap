@@ -8,6 +8,7 @@ class zcl_slpm_dpc_ext definition
     methods /iwbep/if_mgw_appl_srv_runtime~create_stream redefinition.
     methods /iwbep/if_mgw_appl_srv_runtime~delete_stream redefinition.
   protected section.
+    methods processorset_get_entityset redefinition.
     methods systemuserset_get_entityset redefinition.
     methods statusset_get_entityset redefinition.
     methods problemset_update_entity redefinition.
@@ -538,37 +539,51 @@ class zcl_slpm_dpc_ext implementation.
 
     data: lt_products     type zcrm_tt_products,
           ls_entity       like line of et_entityset,
-          lo_slpm_product type ref to zif_crm_service_product.
+          lo_slpm_product type ref to zif_crm_service_product,
+          lo_slpm_user    type ref to zif_slpm_user.
 
+    " Get products, available for user
 
-    select a~product_guid a~product_id b~short_text
-        from (
-            comm_product as a inner join
-            comm_prshtext as b
-            on a~product_guid = b~product_guid )
-            into table lt_products
-            where b~langu = sy-langu.
+    try.
 
-    loop at lt_products assigning field-symbol(<ls_product>).
+        lo_slpm_user = new zcl_slpm_user( sy-uname ).
 
-      ls_entity-guid = <ls_product>-guid.
-      ls_entity-id = <ls_product>-id.
-      ls_entity-name = <ls_product>-name.
-      lo_slpm_product = new zcl_crm_service_product( <ls_product>-guid ).
+        lt_products = lo_slpm_user->get_slpm_products_of_user(  ).
 
-      ls_entity-prioritiescount = lo_slpm_product->get_resp_profile_prio_count(  ).
+*
+*    select a~product_guid a~product_id b~short_text
+*        from (
+*            comm_product as a inner join
+*            comm_prshtext as b
+*            on a~product_guid = b~product_guid )
+*            into table lt_products
+*            where b~langu = sy-langu.
 
-      " We skip all products, which don't have proper priorities assigned
-      " through a response profile
+        loop at lt_products assigning field-symbol(<ls_product>).
 
-      if ls_entity-prioritiescount > 0.
+          ls_entity-guid = <ls_product>-guid.
+          ls_entity-id = <ls_product>-id.
+          ls_entity-name = <ls_product>-name.
+          lo_slpm_product = new zcl_crm_service_product( <ls_product>-guid ).
 
-        append  ls_entity to et_entityset.
+          ls_entity-prioritiescount = lo_slpm_product->get_resp_profile_prio_count(  ).
 
-      endif.
+          " We skip all products, which don't have proper priorities assigned
+          " through a response profile
 
-      clear ls_entity.
-    endloop.
+          if ls_entity-prioritiescount > 0.
+
+            append  ls_entity to et_entityset.
+
+          endif.
+
+          clear ls_entity.
+        endloop.
+
+      catch zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
 
   endmethod.
 
@@ -633,6 +648,8 @@ class zcl_slpm_dpc_ext implementation.
 
         sort lt_priorities.
 
+
+        " Priorities of a product
         " Filter all priorities removing priorities not relevant for a product
 
         if lv_product_guid is not initial.
@@ -782,5 +799,24 @@ class zcl_slpm_dpc_ext implementation.
     endtry.
 
   endmethod.
+
+  method processorset_get_entityset.
+    data: lo_slpm_data_provider type ref to zif_slpm_data_manager.
+
+    try.
+
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        et_entityset = lo_slpm_data_provider->get_list_of_processors(  ).
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
+
+  endmethod.
+
 
 endclass.

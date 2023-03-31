@@ -36,30 +36,6 @@ class zcl_assistant_utilities definition
           value(rp_timezone) type timezone
         raising
           resumable(zcx_assistant_utilities_exc),
-      get_all_users_of_org_unit
-        importing
-          ip_org_unit     type pd_objid_r
-        returning
-          value(rt_users) type zusers_tt
-        raising
-          zcx_assistant_utilities_exc ,
-      get_pos_and_users_of_org_unit
-        importing
-          ip_org_unit                   type pd_objid_r
-        returning
-          value(rt_positions_and_users) type crmt_orgman_swhactor_tab ,
-      get_subunits_of_org_unit
-        importing
-          ip_org_unit         type pd_objid_r
-        returning
-          value(rt_sub_units) type crmt_orgman_swhactor_tab ,
-      get_bp_of_org_unit
-        importing
-          ip_org_unit  type pd_objid_r
-        returning
-          value(ep_bp) type bu_partner
-        raising
-          zcx_assistant_utilities_exc ,
       get_emails_by_user_name
         importing
           ip_user_name              type xubname
@@ -73,13 +49,6 @@ class zcl_assistant_utilities definition
           ip_param_name    type char100
         returning
           value(ep_result) type string
-        raising
-          zcx_assistant_utilities_exc ,
-      get_org_bp_name
-        importing
-          ip_bp          type bu_partner
-        returning
-          value(ep_name) type bu_nameor2
         raising
           zcx_assistant_utilities_exc ,
       convert_char32_guid_to_raw16
@@ -235,70 +204,6 @@ class zcl_assistant_utilities implementation.
   endmethod.
 
 
-  method get_all_users_of_org_unit.
-
-    data: lt_positions_and_users type crmt_orgman_swhactor_tab,
-          ls_user                type zuser_ts,
-          lv_bp                  type bu_partner,
-          lv_org_unit            type pd_objid_r.
-
-    call method get_pos_and_users_of_org_unit
-      exporting
-        ip_org_unit            = ip_org_unit
-      receiving
-        rt_positions_and_users = lt_positions_and_users.
-
-
-    loop at lt_positions_and_users assigning field-symbol(<ls_user_bp>) where otype eq 'CP'.
-
-      clear: lv_bp, lv_org_unit.
-
-      lv_org_unit = <ls_user_bp>-objid.
-
-      call method get_bp_of_org_unit
-        exporting
-          ip_org_unit = lv_org_unit
-        receiving
-          ep_bp       = lv_bp.
-
-      if lv_bp is not initial.
-
-        call function 'CRM_ERMS_FIND_USER_FOR_BP'
-          exporting
-            ev_bupa_no = lv_bp
-          importing
-            ev_user_id = ls_user-username.
-
-        if ls_user-username is not initial.
-
-          append ls_user to rt_users.
-
-        endif.
-
-      endif. " if lv_bp is not initial
-
-    endloop.
-
-  endmethod.
-
-  method get_bp_of_org_unit.
-
-    select single sobid into ep_bp
-      from hrp1001
-       where objid = ip_org_unit and
-         sclas = 'BP'.
-
-    if sy-subrc <> 0.
-
-      raise exception type zcx_assistant_utilities_exc
-        exporting
-          textid = zcx_assistant_utilities_exc=>org_unit_bp_not_found.
-
-    endif.
-
-  endmethod.
-
-
   method get_date_from_timestamp.
 
     data:
@@ -391,71 +296,6 @@ class zcl_assistant_utilities implementation.
     endif. "  if ( sy-fdpos > 0 )
 
   endmethod.
-
-
-  method get_org_bp_name.
-
-    data: lv_name_last  type bu_namep_l,
-          lv_name_first type bu_namep_f,
-          lv_name1_text type bu_name1tx.
-
-
-    if ( ip_bp is not initial ) and ( ip_bp ne '0000000000' ) .
-
-      select single name_org2 into ep_name
-        from but000
-          where partner eq ip_bp.
-
-      if sy-subrc <> 0.
-
-        raise exception type zcx_assistant_utilities_exc
-          exporting
-            textid = zcx_assistant_utilities_exc=>cant_get_bp_name
-            ip_bp  = ip_bp.
-
-      endif. " if sy-subrc <> 0
-
-    endif. " if ip_bp is not initial
-
-  endmethod.
-
-
-
-  method get_pos_and_users_of_org_unit.
-
-    call function 'RH_STRUC_GET'
-      exporting
-        act_otype      = 'O'
-        act_objid      = ip_org_unit
-        act_wegid      = 'SAP_SORG'
-      tables
-        result_tab     = rt_positions_and_users
-      exceptions
-        no_plvar_found = 1
-        no_entry_found = 2
-        others         = 3.
-
-  endmethod.
-
-
-
-  method get_subunits_of_org_unit.
-
-    call function 'RH_STRUC_GET'
-      exporting
-        act_otype      = 'O'
-        act_objid      = ip_org_unit
-        act_wegid      = 'B002'
-      tables
-        result_tab     = rt_sub_units
-      exceptions
-        no_plvar_found = 1
-        no_entry_found = 2
-        others         = 3.
-
-  endmethod.
-
-
 
   method get_system_timezone.
 

@@ -136,7 +136,13 @@ interface zif_slpm_data_manager
       returning
         value(rt_statuses) type zcrm_order_tt_statuses
       raising
-        zcx_crm_order_api_exc.
+        zcx_crm_order_api_exc,
+
+    get_list_of_processors
+      returning
+        value(rt_processors) type zusers_tt
+      raising
+        zcx_slpm_configuration_exc.
 
 
 endinterface.

@@ -1,6 +1,5 @@
 class zcl_system_user definition
   public
-  final
   create public .
 
   public section.

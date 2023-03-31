@@ -18,7 +18,12 @@ class zcl_slpm_data_manager definition
     methods: add_problem_non_db_fields
       changing cs_problem type zcrm_order_ts_sl_problem,
       fill_possible_problem_actions
-        changing cs_problem type zcrm_order_ts_sl_problem.
+        changing cs_problem type zcrm_order_ts_sl_problem,
+      get_processors_pool_org_unit
+        returning
+          value(rp_processors_pool_org_unit) type pd_objid_r
+        raising
+          zcx_slpm_configuration_exc.
 
 endclass.
 
@@ -400,6 +405,7 @@ class zcl_slpm_data_manager implementation.
     " Requester reply: when is enabled
     cs_problem-requesterreplyenabled = switch #( cs_problem-status
               when 'E0003'    then abap_true
+              when 'E0005'    then abap_true
                   else abap_false ).
 
     " Requester update(extra data provision): when is enabled
@@ -420,19 +426,85 @@ class zcl_slpm_data_manager implementation.
             switch char5( cs_problem-status
               when 'E0001'    then abap_true
               when 'E0002'    then abap_true
+              when 'E0015'    then abap_true
                   else abap_false )
         else abap_false ) .
 
     " Processor take over: when is enabled
 
-    cs_problem-processortakeoverenabled = cond bu_partner( when cs_problem-processorbusinesspartner is initial
+    cs_problem-processortakeoverenabled = cond bu_partner( when ( cs_problem-processorbusinesspartner  is initial )
+        or ( cs_problem-processorbusinesspartner eq '0' )
         then switch char5( cs_problem-status
 
               when 'E0001'    then abap_true
               when 'E0002'    then abap_true
+              when 'E0015'    then abap_true
                   else abap_false )
 
         else abap_false ).
+
+    " Processor priority change: when is enabled
+
+    cs_problem-processorprioritychangeenabled = cond bu_partner(
+            when cs_problem-processorbusinesspartner = mo_system_user->get_businesspartner( ) then
+                switch char5( cs_problem-status
+                  when 'E0001'    then abap_true
+                      else abap_false )
+            else abap_false ) .
+
+    " Processor return from withdrawal: when is enabled
+
+    cs_problem-processorreturnfromwithdrawal = cond bu_partner(
+           when cs_problem-processorbusinesspartner = mo_system_user->get_businesspartner( ) then
+                switch char5( cs_problem-status
+                    when 'E0010'    then abap_true
+                    else abap_false )
+            else abap_false ) .
+
+
+  endmethod.
+
+  method zif_slpm_data_manager~get_list_of_processors.
+
+    data: lv_proc_pool_org_unit     type pd_objid_r,
+          lo_organizational_model   type ref to zif_organizational_model,
+          lt_proc_pool_assigned_pos type zorg_model_tt_positions,
+          ls_processor              type zuser_ts.
+
+    lv_proc_pool_org_unit = me->get_processors_pool_org_unit(  ).
+
+    if lv_proc_pool_org_unit is not initial.
+
+      lo_organizational_model = new zcl_organizational_model( lv_proc_pool_org_unit ).
+
+      lt_proc_pool_assigned_pos = lo_organizational_model->get_assigned_pos_of_org_unit(  ).
+
+      loop at lt_proc_pool_assigned_pos assigning field-symbol(<ls_proc_pool_assigned_pos>).
+
+        ls_processor-businesspartner = <ls_proc_pool_assigned_pos>-businesspartner.
+        ls_processor-fullname = <ls_proc_pool_assigned_pos>-fullname.
+        ls_processor-username = <ls_proc_pool_assigned_pos>-businesspartner.
+        ls_processor-searchtag1 = <ls_proc_pool_assigned_pos>-stext.
+
+        append ls_processor to rt_processors.
+
+      endloop.
+
+*      if rt_processors is not initial.
+*
+*       clear ls_processor.
+*       ls_processor-businesspartner = '0000000000'.
+*       append ls_processor to rt_processors.
+*
+*      endif.
+
+    endif.
+
+  endmethod.
+
+  method get_processors_pool_org_unit.
+
+    rp_processors_pool_org_unit = me->mo_active_configuration->get_parameter_value( 'PROCESSORS_POOL_ORG_UNIT_NUMBER' ).
 
   endmethod.
 

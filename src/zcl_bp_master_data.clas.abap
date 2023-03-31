@@ -1,9 +1,10 @@
-class zcl_bp_contacts_book definition
+class zcl_bp_master_data definition
   public
   create public .
 
   public section.
-    interfaces zif_contacts_book .
+    interfaces: zif_contacts_book,
+      zif_bp_master_data .
     methods constructor
       importing
         ip_bp_num type bu_partner.
@@ -17,7 +18,7 @@ class zcl_bp_contacts_book definition
 
 endclass.
 
-class zcl_bp_contacts_book implementation.
+class zcl_bp_master_data implementation.
 
   method constructor.
 
@@ -84,6 +85,44 @@ class zcl_bp_contacts_book implementation.
           addrnumber = ms_but000-addrcomm.
 
     endcase.
+
+  endmethod.
+
+  method zif_bp_master_data~get_contact_persons.
+
+    select partner2 into table rt_contact_persons_bp
+        from but051 where partner1 eq mv_bp_num.
+
+  endmethod.
+
+  method zif_bp_master_data~is_contact_person_of.
+
+    select partner1 into table rt_companies_bp
+        from but051 where partner2 eq mv_bp_num.
+
+  endmethod.
+
+  method zif_bp_master_data~get_bp_number.
+
+    if ms_but000 is initial.
+
+      me->set_but000(  ).
+
+    endif.
+
+    rp_bp_num = me->ms_but000-partner.
+
+  endmethod.
+
+  method zif_bp_master_data~get_but000_record.
+
+    if ms_but000 is initial.
+
+      me->set_but000(  ).
+
+    endif.
+
+    rs_but000 = me->ms_but000.
 
   endmethod.
 
