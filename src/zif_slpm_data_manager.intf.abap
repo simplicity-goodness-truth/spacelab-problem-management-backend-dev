@@ -9,7 +9,9 @@ interface zif_slpm_data_manager
       value(et_result) type zcrm_order_tt_sl_problems
     raising
       zcx_crm_order_api_exc
-      zcx_assistant_utilities_exc,
+      zcx_assistant_utilities_exc
+      zcx_system_user_exc
+      zcx_slpm_configuration_exc,
 
     get_problem
       importing
@@ -19,7 +21,8 @@ interface zif_slpm_data_manager
         value(es_result)    type zcrm_order_ts_sl_problem
       raising
         zcx_crm_order_api_exc
-        zcx_assistant_utilities_exc,
+        zcx_assistant_utilities_exc
+        zcx_slpm_configuration_exc,
 
     get_texts
       importing
@@ -102,7 +105,8 @@ interface zif_slpm_data_manager
         zcx_crm_order_api_exc
         zcx_assistant_utilities_exc
         zcx_slpm_data_manager_exc
-        zcx_slpm_configuration_exc,
+        zcx_slpm_configuration_exc
+        zcx_system_user_exc,
 
     get_all_priorities
       returning
@@ -140,9 +144,22 @@ interface zif_slpm_data_manager
 
     get_list_of_processors
       returning
-        value(rt_processors) type zusers_tt
+        value(rt_processors) type zslpm_tt_users
+      raising
+        zcx_slpm_configuration_exc,
+
+    get_list_of_companies
+      returning
+        value(rt_companies) type zslpm_tt_companies
+      raising
+        zcx_system_user_exc,
+
+    get_frontend_configuration
+      importing
+        ip_application                   type char100
+      returning
+        value(rt_frontend_configuration) type zslpm_tt_frontend_config
       raising
         zcx_slpm_configuration_exc.
-
 
 endinterface.

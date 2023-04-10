@@ -77,7 +77,13 @@ interface zif_custom_crm_order_read
       returning
         value(es_text) type cl_ai_crm_gw_mymessage_mpc=>ts_text
       raising
-        zcx_crm_order_api_exc.
+        zcx_crm_order_api_exc,
+
+    get_all_appointments_by_guid
+      importing
+        ip_guid                type crmt_object_guid
+      returning
+        value(rt_appointments) type crmt_appointment_wrkt.
 
 
 

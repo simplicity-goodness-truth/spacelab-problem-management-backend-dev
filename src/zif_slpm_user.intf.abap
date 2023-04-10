@@ -1,8 +1,49 @@
 interface zif_slpm_user
   public .
 
-  methods: get_slpm_products_of_user
-    returning
-      value(rt_slpm_products_of_user) type zcrm_tt_products.
+  methods:
+
+    get_slpm_products_of_user
+      returning
+        value(rt_slpm_products_of_user) type zslpm_tt_products
+      raising
+        zcx_slpm_configuration_exc,
+
+    get_slpm_companies_bp_of_user
+      returning
+        value(rt_companies_bp) type crmt_bu_partner_t,
+
+    get_slpm_prime_company_of_user
+      returning
+        value(rs_company) type zslpm_ts_company,
+
+    is_auth_to_create_on_behalf
+      returning
+        value(rb_authorized) type bool,
+
+    is_auth_to_view_company
+      importing
+        ip_company_bp        type bu_partner
+      returning
+        value(rb_authorized) type bool,
+
+    is_auth_to_crea_company
+      importing
+        ip_company_bp        type bu_partner
+      returning
+        value(rb_authorized) type bool,
+
+    is_auth_to_view_product
+      importing
+        ip_product_id        type comt_product_id
+      returning
+        value(rb_authorized) type bool,
+
+    is_auth_to_crea_product
+      importing
+        ip_product_id        type comt_product_id
+      returning
+        value(rb_authorized) type bool.
+
 
 endinterface.

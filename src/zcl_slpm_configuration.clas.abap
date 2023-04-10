@@ -43,12 +43,20 @@ class zcl_slpm_configuration definition
         returning
           value(ep_value) type text200
         raising
-          zcx_slpm_configuration_exc.
+          zcx_slpm_configuration_exc,
+
+      get_values_from_db_by_mask
+        importing
+          ip_param_name_mask   type char50
+        returning
+          value(rt_parameters) type  zslpm_tt_setup_records
+        raising
+          zcx_slpm_configuration_exc
+        .
 
 endclass.
 
 class zcl_slpm_configuration implementation.
-
 
   method zif_slpm_configuration~get_parameter_value.
 
@@ -137,6 +145,24 @@ class zcl_slpm_configuration implementation.
             ip_parameter = ip_param_name.
 
     endtry.
+
+  endmethod.
+
+  method zif_slpm_configuration~get_parameters_values_by_mask.
+
+    data: lv_param_mask   type char50.
+
+    lv_param_mask = |{ mv_active_profile }| && |.| && |%| && |{ ip_param_name_mask }|  && |%|.
+
+    rt_parameters = me->get_values_from_db_by_mask( lv_param_mask ).
+
+  endmethod.
+
+  method get_values_from_db_by_mask.
+
+    select param value from zslpm_setup
+     into table rt_parameters
+       where param like ip_param_name_mask.
 
   endmethod.
 

@@ -84,7 +84,16 @@ class zcl_assistant_utilities definition
         returning
           value(rp_formatted_timestamp) type string
         raising
-          zcx_assistant_utilities_exc.
+          zcx_assistant_utilities_exc,
+      generate_x16_guid
+        returning
+          value(rp_sysuuid_x16_guid) type sysuuid_x16,
+      calc_duration_btw_timestamps
+        importing
+          ip_timestamp_1     type timestamp
+          ip_timestamp_2     type timestamp
+        returning
+          value(rp_duration) type integer .
 
   protected section.
   private section.
@@ -368,8 +377,8 @@ class zcl_assistant_utilities implementation.
   method get_date_time_from_timestamp.
 
     data:
-      lv_date     type sy-datum,
-      lv_time     type sy-uzeit,
+      lv_date            type sy-datum,
+      lv_time            type sy-uzeit,
       lv_system_timezone type timezone.
 
     lv_system_timezone = get_system_timezone(  ).
@@ -382,5 +391,66 @@ class zcl_assistant_utilities implementation.
 
 
   endmethod.
+
+  method generate_x16_guid.
+
+    " Standard generation of X16 GUID
+
+    try.
+        rp_sysuuid_x16_guid = cl_system_uuid=>create_uuid_x16_static( ).
+
+      catch cx_uuid_error.
+        rp_sysuuid_x16_guid = '0'.
+    endtry.
+
+  endmethod.
+
+
+  method calc_duration_btw_timestamps.
+
+
+    data lv_timestamp_1   type c length 14.
+    data lv_timestamp_2   type c length 14.
+
+
+    data: lv_date_1 type d,
+          lv_date_2 type d,
+          lv_time_1 type t,
+          lv_time_2 type t.
+
+    " Check if one of provided parameters is not zero
+
+    if ( ip_timestamp_1 = 0 ) or ( ip_timestamp_2 = 0 ).
+
+      rp_duration = 0.
+      return.
+
+    endif.
+
+    " Difference calculation
+
+    lv_timestamp_1 = ip_timestamp_1.
+    lv_timestamp_2 = ip_timestamp_2.
+
+    if ip_timestamp_1 < ip_timestamp_2.
+      lv_date_2       = lv_timestamp_1(8).
+      lv_time_2       = lv_timestamp_1+8(6).
+      lv_date_1       = lv_timestamp_2(8).
+      lv_time_1       = lv_timestamp_2+8(6).
+    else.
+      lv_date_1       = lv_timestamp_1(8).
+      lv_time_1       = lv_timestamp_1+8(6).
+      lv_date_2       = lv_timestamp_2(8).
+      lv_time_2       = lv_timestamp_2+8(6).
+    endif.
+
+    " Duration in seconds
+
+    rp_duration = ( ( ( lv_date_1 - lv_date_2 ) * 86400
+                 + ( lv_time_1 - lv_time_2 ) ) ).
+
+  endmethod.
+
+
 
 endclass.

@@ -20,6 +20,30 @@
      <MSGNR>002</MSGNR>
      <TEXT>SLPM: &amp;1</TEXT>
     </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZSLPM_DATA_MANAGER</ARBGB>
+     <MSGNR>003</MSGNR>
+     <TEXT>SLPM: user &amp;1 not authorized to view problems of company &amp;2</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZSLPM_DATA_MANAGER</ARBGB>
+     <MSGNR>004</MSGNR>
+     <TEXT>SLPM: user &amp;1 not authorized to create problems of company &amp;2</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZSLPM_DATA_MANAGER</ARBGB>
+     <MSGNR>005</MSGNR>
+     <TEXT>SLPM: user &amp;1 not authorized to view product &amp;2</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZSLPM_DATA_MANAGER</ARBGB>
+     <MSGNR>006</MSGNR>
+     <TEXT>SLPM: user &amp;1 not authorized to create problems of product &amp;2</TEXT>
+    </T100>
    </T100>
   </asx:values>
  </asx:abap>

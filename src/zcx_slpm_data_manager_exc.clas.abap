@@ -25,22 +25,44 @@ class zcx_slpm_data_manager_exc definition
         attr3 type scx_attrname value '',
         attr4 type scx_attrname value '',
       end of internal_error .
+    constants:
+      begin of no_auth_for_creat_for_company,
+        msgid type symsgid value 'ZSLPM_DATA_MANAGER',
+        msgno type symsgno value '004',
+        attr1 type scx_attrname value 'MV_SYSTEM_USER',
+        attr2 type scx_attrname value 'MV_COMPANY_BP',
+        attr3 type scx_attrname value '',
+        attr4 type scx_attrname value '',
+      end of no_auth_for_creat_for_company .
+    constants:
+      begin of no_auth_for_creat_for_prod,
+        msgid type symsgid value 'ZSLPM_DATA_MANAGER',
+        msgno type symsgno value '006',
+        attr1 type scx_attrname value 'MV_SYSTEM_USER',
+        attr2 type scx_attrname value 'MV_PRODUCT_ID',
+        attr3 type scx_attrname value '',
+        attr4 type scx_attrname value '',
+      end of no_auth_for_creat_for_prod .
     class-data mv_system_user type xubname .
     class-data mv_error_message type string .
+    class-data mv_company_bp type bu_partner .
+    class-data mv_product_id type comt_product_id .
 
     methods constructor
       importing
-        textid           like if_t100_message=>t100key optional
-        previous         like previous optional
-        ip_system_user   type xubname optional
-        ip_error_message type string optional.
+        !textid           like if_t100_message=>t100key optional
+        !previous         like previous optional
+        !ip_system_user   type xubname optional
+        !ip_error_message type string optional
+        !ip_company_bp    type bu_partner optional
+        ip_product_id     type comt_product_id optional.
   protected section.
   private section.
-ENDCLASS.
+endclass.
 
 
 
-CLASS ZCX_SLPM_DATA_MANAGER_EXC IMPLEMENTATION.
+class zcx_slpm_data_manager_exc implementation.
 
 
   method constructor ##ADT_SUPPRESS_GENERATION.
@@ -49,6 +71,8 @@ CLASS ZCX_SLPM_DATA_MANAGER_EXC IMPLEMENTATION.
         previous = previous.
     me->mv_system_user = ip_system_user .
     me->mv_error_message = ip_error_message.
+    me->mv_company_bp = ip_company_bp.
+    me->mv_product_id = ip_product_id.
     clear me->textid.
     if textid is initial.
       if_t100_message~t100key = if_t100_message=>default_textid.
@@ -56,4 +80,4 @@ CLASS ZCX_SLPM_DATA_MANAGER_EXC IMPLEMENTATION.
       if_t100_message~t100key = textid.
     endif.
   endmethod.
-ENDCLASS.
+endclass.

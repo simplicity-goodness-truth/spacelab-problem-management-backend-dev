@@ -8,6 +8,8 @@ class zcl_slpm_dpc_ext definition
     methods /iwbep/if_mgw_appl_srv_runtime~create_stream redefinition.
     methods /iwbep/if_mgw_appl_srv_runtime~delete_stream redefinition.
   protected section.
+    methods frontendconfigur_get_entityset redefinition.
+    methods companyset_get_entityset redefinition.
     methods processorset_get_entityset redefinition.
     methods systemuserset_get_entityset redefinition.
     methods statusset_get_entityset redefinition.
@@ -537,10 +539,17 @@ class zcl_slpm_dpc_ext implementation.
 
   method productset_get_entityset.
 
-    data: lt_products     type zcrm_tt_products,
-          ls_entity       like line of et_entityset,
-          lo_slpm_product type ref to zif_crm_service_product,
-          lo_slpm_user    type ref to zif_slpm_user.
+    data: lt_products           type zslpm_tt_products,
+          ls_entity             like line of et_entityset,
+          lo_slpm_product       type ref to zif_crm_service_product,
+          lo_slpm_user          type ref to zif_slpm_user,
+          lt_filter_customer_bp type /iwbep/t_cod_select_options.
+
+    " Get filter
+
+    lt_filter_customer_bp = get_filter_select_options( io_tech_request_context  = io_tech_request_context
+                                           ip_property = 'COMPANYBUSINESSPARTNER' ).
+
 
     " Get products, available for user
 
@@ -550,22 +559,13 @@ class zcl_slpm_dpc_ext implementation.
 
         lt_products = lo_slpm_user->get_slpm_products_of_user(  ).
 
-*
-*    select a~product_guid a~product_id b~short_text
-*        from (
-*            comm_product as a inner join
-*            comm_prshtext as b
-*            on a~product_guid = b~product_guid )
-*            into table lt_products
-*            where b~langu = sy-langu.
-
-        loop at lt_products assigning field-symbol(<ls_product>).
+        loop at lt_products assigning field-symbol(<ls_product>) where companybusinesspartner in lt_filter_customer_bp.
 
           ls_entity-guid = <ls_product>-guid.
           ls_entity-id = <ls_product>-id.
           ls_entity-name = <ls_product>-name.
+          ls_entity-companybusinesspartner = <ls_product>-companybusinesspartner.
           lo_slpm_product = new zcl_crm_service_product( <ls_product>-guid ).
-
           ls_entity-prioritiescount = lo_slpm_product->get_resp_profile_prio_count(  ).
 
           " We skip all products, which don't have proper priorities assigned
@@ -781,19 +781,34 @@ class zcl_slpm_dpc_ext implementation.
 
   method systemuserset_get_entityset.
 
-    data: lo_system_user type ref to zif_system_user,
-          ls_entity      like line of et_entityset.
+    data:
+      lo_system_user type ref to zif_system_user,
+      lo_slpm_user   type ref to zif_slpm_user,
+      ls_entity      like line of et_entityset,
+      ls_company     type zslpm_ts_company.
 
     try.
-        lo_system_user = new zcl_system_user( sy-uname ).
+
+        lo_slpm_user = new zcl_slpm_user( sy-uname ).
+
+        lo_system_user ?= lo_slpm_user.
 
         ls_entity-username = sy-uname.
         ls_entity-fullname = lo_system_user->get_fullname(  ).
         ls_entity-businesspartner = lo_system_user->get_businesspartner(  ).
 
+        ls_company = lo_slpm_user->get_slpm_prime_company_of_user(  ).
+
+        ls_entity-companybusinesspartner = ls_company-companybusinesspartner.
+
+        ls_entity-companyname = ls_company-companyname.
+
+        ls_entity-authtocreateproblemonbehalf = lo_slpm_user->is_auth_to_create_on_behalf(  ).
+
         append ls_entity to et_entityset.
 
       catch zcx_system_user_exc into data(lcx_process_exception).
+
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -801,6 +816,7 @@ class zcl_slpm_dpc_ext implementation.
   endmethod.
 
   method processorset_get_entityset.
+
     data: lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     try.
@@ -818,5 +834,55 @@ class zcl_slpm_dpc_ext implementation.
 
   endmethod.
 
+  method companyset_get_entityset.
+
+    data: lo_slpm_data_provider type ref to zif_slpm_data_manager.
+
+    try.
+
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        et_entityset = lo_slpm_data_provider->get_list_of_companies(  ).
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
+
+  endmethod.
+
+  method frontendconfigur_get_entityset.
+
+    data: lv_application        type char100,
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
+
+    lv_application = get_filter_value(
+        exporting
+        io_tech_request_context = io_tech_request_context
+        ip_property             = 'APPLICATION').
+
+    if lv_application is initial.
+
+      return.
+
+    endif.
+
+    try.
+
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        et_entityset = lo_slpm_data_provider->get_frontend_configuration( lv_application ).
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
+
+
+  endmethod.
 
 endclass.

@@ -17,7 +17,7 @@ class zcl_slpm_customer implementation.
   method zif_slpm_customer~get_slpm_products_of_customer.
 
     data: lv_bp_number                type bu_partner,
-          ls_slpm_product_of_customer type zcrm_ts_product,
+          ls_slpm_product_of_customer type zslpm_ts_product,
           lt_customer_product_ids     type table of comm_product-product_id.
 
     lv_bp_number = me->zif_company~get_company_bp_number(  ).
@@ -38,6 +38,8 @@ class zcl_slpm_customer implementation.
                   where
                   a~product_id = <ls_customer_product_id> and
                   b~langu = sy-langu.
+
+        ls_slpm_product_of_customer-companybusinesspartner = lv_bp_number.
 
         append ls_slpm_product_of_customer to rt_slpm_products_of_customer.
 

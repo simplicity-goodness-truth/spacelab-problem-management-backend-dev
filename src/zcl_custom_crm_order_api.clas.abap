@@ -2284,4 +2284,28 @@ class zcl_custom_crm_order_api implementation.
 
   endmethod.
 
+  method zif_custom_crm_order_read~get_all_appointments_by_guid.
+
+    data:
+       lo_cl_ags_crm_1o_api     type ref to cl_ags_crm_1o_api.
+
+
+    call method cl_ags_crm_1o_api=>get_instance
+      exporting
+        iv_header_guid                = ip_guid
+        iv_process_mode               = 'C'
+        iv_process_type               = mv_process_type
+      importing
+        eo_instance                   = lo_cl_ags_crm_1o_api
+      exceptions
+        invalid_parameter_combination = 1
+        error_occurred                = 2
+        others                        = 3.
+
+    lo_cl_ags_crm_1o_api->get_appointments(
+        importing
+            et_appointment = rt_appointments ).
+
+  endmethod.
+
 endclass.

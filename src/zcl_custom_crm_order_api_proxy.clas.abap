@@ -35,11 +35,11 @@ class zcl_custom_crm_order_api_proxy definition
       is_user_authorized_to_init
         raising zcx_crm_order_api_exc.
 
-ENDCLASS.
+endclass.
 
 
 
-CLASS ZCL_CUSTOM_CRM_ORDER_API_PROXY IMPLEMENTATION.
+class zcl_custom_crm_order_api_proxy implementation.
 
 
   method constructor.
@@ -499,4 +499,16 @@ CLASS ZCL_CUSTOM_CRM_ORDER_API_PROXY IMPLEMENTATION.
     endif.
 
   endmethod.
-ENDCLASS.
+
+
+  method zif_custom_crm_order_read~get_all_appointments_by_guid.
+
+    if ( mo_custom_crm_order_read is bound ).
+
+      rt_appointments = mo_custom_crm_order_read->get_all_appointments_by_guid( ip_guid ).
+
+    endif.
+
+  endmethod.
+
+endclass.

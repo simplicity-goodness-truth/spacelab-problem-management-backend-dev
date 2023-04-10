@@ -169,6 +169,11 @@ class zcl_logger_to_app_log implementation.
 
   method zif_logger~warn.
 
+    mv_message_type = 'W'.
+
+    add_record( ip_message_text ).
+
+
   endmethod.
 
 endclass.

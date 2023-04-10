@@ -366,13 +366,27 @@ class zcl_slpm_prob_change_notifier implementation.
 
     data lo_bp_address_book type ref to zif_contacts_book.
 
-    lo_bp_address_book = new zcl_bp_master_data( switch #( ip_process_role
+    " All participants except Observer have Business Partners
+    " For requester, processor, support team we use emails from BP
+    " For observer we use raw email from problem entity
 
-        when 'REQUESTER'    then ms_problem_new_state-requestorbusinesspartner
-        when 'PROCESSOR'    then ms_problem_new_state-processorbusinesspartner
-        when 'SUPPORTTEAM'  then ms_problem_new_state-supportteambusinesspartner ) ).
+    if not ip_process_role eq 'OBSERVER'.
 
-    rp_email_address = lo_bp_address_book->get_email_address(  ).
+      lo_bp_address_book = new zcl_bp_master_data( switch #( ip_process_role
+
+          when 'REQUESTER'    then ms_problem_new_state-requestorbusinesspartner
+          when 'PROCESSOR'    then ms_problem_new_state-processorbusinesspartner
+          when 'SUPPORTTEAM'  then ms_problem_new_state-supportteambusinesspartner ) ).
+
+      rp_email_address = lo_bp_address_book->get_email_address(  ).
+
+    else.
+
+      if ( ms_problem_new_state-notifybycontactemail eq abap_true ).
+        rp_email_address = ms_problem_new_state-contactemail.
+      endif.
+
+    endif.
 
   endmethod.
 
@@ -415,12 +429,12 @@ class zcl_slpm_prob_change_notifier implementation.
         ( name = 'OBJECTID' translation = 'Номер' internal = '' )
         ( name = 'PRIORITYTEXT' translation = 'Приоритет' internal = '' )
         ( name = 'PRODUCTTEXT' translation = 'Тип сервиса' internal = '' )
-        ( name = 'REQUESTORCOMPANY' translation = 'Компания' internal = '' )
         ( name = 'REQUESTORFULLNAME' translation = 'Автор' internal = '' )
         ( name = 'CREATED_AT' translation = 'Дата создания (временная зона системы)' internal = '' )
         ( name = 'PROCESSORFULLNAME' translation = 'Обработчик' internal = 'X' )
         ( name = 'IRT_TIMESTAMP' translation = 'Время реакции' internal = 'X' )
         ( name = 'MPT_TIMESTAMP' translation = 'Максимальное время обработки' internal = 'X' )
+        ( name = 'COMPANYNAME' translation = 'Компания автора' internal = 'X' )
     ).
 
     get reference of ms_problem_new_state into lr_entity.
@@ -443,7 +457,7 @@ class zcl_slpm_prob_change_notifier implementation.
 
       assign component <ls_field>-name of structure <fs_structure> to <fs_value>.
 
-      if ( <fs_value> is not initial ).
+      if ( <fs_value> is assigned ) and ( <fs_value> is not initial ).
 
         if ( <ls_field>-internal = 'X' ).
 
@@ -474,6 +488,8 @@ class zcl_slpm_prob_change_notifier implementation.
         |<br/>|.
 
       endif.
+
+
 
     endloop.
 
