@@ -13,6 +13,10 @@ interface zif_crm_service_product
 
     get_resp_profile_prio
       returning
-        value(rt_priorities) type zcrm_order_tt_priorities.
+        value(rt_priorities) type zcrm_order_tt_priorities,
+
+    get_availability_profile_name
+      returning
+        value(rp_profile_name) type srv_serwi.
 
 endinterface.

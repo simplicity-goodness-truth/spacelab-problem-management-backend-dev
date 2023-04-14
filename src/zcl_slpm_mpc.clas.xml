@@ -80,12 +80,6 @@
     </item>
     <item>
      <ID>I</ID>
-     <KEY>020</KEY>
-     <ENTRY>Priority</ENTRY>
-     <LENGTH>132</LENGTH>
-    </item>
-    <item>
-     <ID>I</ID>
      <KEY>021</KEY>
      <ENTRY>Description</ENTRY>
      <LENGTH>132</LENGTH>
@@ -132,6 +126,66 @@
      <ENTRY>Character 100</ENTRY>
      <LENGTH>132</LENGTH>
     </item>
+    <item>
+     <ID>I</ID>
+     <KEY>029</KEY>
+     <ENTRY>Alert configuration: string</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>030</KEY>
+     <ENTRY>Alert configuration: string</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>031</KEY>
+     <ENTRY>GUID of Appointment</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>032</KEY>
+     <ENTRY>Time Stamp (UTC) of Start Time of Appointment</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>033</KEY>
+     <ENTRY>30 Characters</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>034</KEY>
+     <ENTRY>30 Characters</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>035</KEY>
+     <ENTRY>GUID of Appointment</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>037</KEY>
+     <ENTRY>30 Characters</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>038</KEY>
+     <ENTRY>30 Characters</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>039</KEY>
+     <ENTRY>Time Stamp (UTC) of Start Time of Appointment</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
    </TPOOL>
    <DESCRIPTIONS>
     <SEOCOMPOTX>
@@ -175,9 +229,24 @@
      <DESCRIPT>DEFINE_PRODUCT</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
+     <CMPNAME>DEFINE_SLAIRTHISTORY</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>DEFINE_SLAIRTHISTORY</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>DEFINE_SLAMPTHISTORY</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>DEFINE_SLAMPTHISTORY</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
      <CMPNAME>DEFINE_STATUS</CMPNAME>
      <LANGU>E</LANGU>
      <DESCRIPT>DEFINE_STATUS</DESCRIPT>
+    </SEOCOMPOTX>
+    <SEOCOMPOTX>
+     <CMPNAME>DEFINE_SYSTEM</CMPNAME>
+     <LANGU>E</LANGU>
+     <DESCRIPT>DEFINE_SYSTEM</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
      <CMPNAME>DEFINE_SYSTEMUSER</CMPNAME>

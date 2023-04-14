@@ -14,8 +14,10 @@ class zcl_organizational_model definition
   private section.
 
     types: ty_positions_users_full type  table of objec.
+
     data:
-        mv_root_org_unit type pd_objid_r.
+      mv_root_org_unit type pd_objid_r.
+
 
     methods: get_org_unit_code_and_text
       importing
@@ -63,7 +65,9 @@ class zcl_organizational_model implementation.
   endmethod.
 
 
+
   method get_bp_of_org_unit.
+
 
     select single sobid into ep_bp
       from hrp1001
@@ -123,13 +127,13 @@ class zcl_organizational_model implementation.
 
   method zif_organizational_model~get_assigned_pos_of_org_unit.
 
-    data: lt_child_records_short  type crmt_orgman_swhactor_tab,
-          lt_child_records        type ty_positions_users_full,
-          ls_position             type zorg_model_ts_position,
-          lv_bp                   type bu_partner,
-          lv_org_unit             type pd_objid_r,
-          lo_bp_address_book      type ref to zif_contacts_book,
-          lv_last_s_position      type pd_objid_r.
+    data: lt_child_records_short type crmt_orgman_swhactor_tab,
+          lt_child_records       type ty_positions_users_full,
+          ls_position            type zorg_model_ts_position,
+          lv_bp                  type bu_partner,
+          lv_org_unit            type pd_objid_r,
+          lo_bp_address_book     type ref to zif_contacts_book,
+          lv_last_s_position     type pd_objid_r.
 
     me->get_pos_and_users_of_org_unit(
      importing

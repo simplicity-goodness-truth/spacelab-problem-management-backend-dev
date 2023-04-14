@@ -10,17 +10,21 @@ class zcl_slpm_data_manager definition
         io_active_configuration type ref to zif_slpm_configuration
         io_system_user          type ref to zif_system_user optional
       raising
-        zcx_slpm_configuration_exc.
+        zcx_slpm_configuration_exc
+        zcx_system_user_exc
+        zcx_crm_order_api_exc.
 
   protected section.
   private section.
-    data: mo_active_configuration type ref to zif_slpm_configuration,
-          mo_system_user          type ref to zif_system_user,
-          mo_log                  type ref to zcl_logger_to_app_log,
-          mv_app_log_object       type balobj_d,
-          mv_app_log_subobject    type balsubobj.
-
-
+    data:
+      mo_slpm_problem_api       type ref to zcl_slpm_problem_api,
+      mo_active_configuration   type ref to zif_slpm_configuration,
+      mo_system_user            type ref to zif_system_user,
+      mo_log                    type ref to zcl_logger_to_app_log,
+      mv_app_log_object         type balobj_d,
+      mv_app_log_subobject      type balsubobj,
+      mt_internal_pool          type zslpm_tt_users,
+      mt_proc_pool_assigned_pos type zorg_model_tt_positions.
 
     methods:
 
@@ -30,7 +34,8 @@ class zcl_slpm_data_manager definition
                  zcx_slpm_configuration_exc,
 
       fill_possible_problem_actions
-        changing cs_problem type zcrm_order_ts_sl_problem,
+        changing
+          cs_problem type zcrm_order_ts_sl_problem,
 
       get_processors_pool_org_unit
         returning
@@ -58,7 +63,32 @@ class zcl_slpm_data_manager definition
         importing
           ip_guid                   type crmt_object_guid
         returning
-          value(rp_stored_irt_perc) type int4.
+          value(rp_stored_irt_perc) type int4,
+
+      get_stored_irt_timestamp
+        importing
+          ip_guid             type crmt_object_guid
+        returning
+          value(rp_timestamp) type timestamp,
+
+      get_last_slpm_irt_hist
+        importing
+          ip_guid                 type crmt_object_guid
+        returning
+          value(rs_slpm_irt_hist) type zslpm_irt_hist,
+
+      is_irt_history_available
+        importing
+          ip_guid             type crmt_object_guid
+        returning
+          value(rp_available) type bool,
+
+      is_mpt_history_available
+        importing
+          ip_guid             type crmt_object_guid
+        returning
+          value(rp_available) type bool.
+
 
 endclass.
 
@@ -79,12 +109,12 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~create_attachment.
 
-    data:
-      lo_slmp_problem_api type ref to zcl_slpm_problem_api.
+*    data:
+*      lo_slpm_problem_api type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    lo_slmp_problem_api->zif_custom_crm_order_create~create_attachment(
+    mo_slpm_problem_api->zif_custom_crm_order_create~create_attachment(
       exporting
           ip_content = ip_content
           ip_file_name = ip_file_name
@@ -96,16 +126,16 @@ class zcl_slpm_data_manager implementation.
   method zif_slpm_data_manager~create_problem.
 
     data:
-      lo_slmp_problem_api type ref to zcl_slpm_problem_api,
-      lr_problem          type ref to data,
-      lv_guid             type crmt_object_guid.
+      "lo_slpm_problem_api type ref to zcl_slpm_problem_api,
+      lr_problem type ref to data,
+      lv_guid    type crmt_object_guid.
 
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
+    "  lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     get reference of is_problem into lr_problem.
 
-    lo_slmp_problem_api->zif_custom_crm_order_create~create_with_std_and_cust_flds(
+    mo_slpm_problem_api->zif_custom_crm_order_create~create_with_std_and_cust_flds(
         exporting ir_entity = lr_problem
         importing
         ep_guid = lv_guid ).
@@ -116,12 +146,12 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~create_text.
 
-    data:
-        lo_slmp_problem_api type ref to zcl_slpm_problem_api.
+*    data:
+*        lo_slpm_problem_api type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    lo_slmp_problem_api->zif_custom_crm_order_create~create_text(
+    mo_slpm_problem_api->zif_custom_crm_order_create~create_text(
         exporting
             ip_guid = ip_guid
             ip_tdid = ip_tdid
@@ -131,12 +161,12 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~delete_attachment.
 
-    data:
-      lo_slmp_problem_api type ref to zcl_slpm_problem_api.
+*    data:
+*      lo_slpm_problem_api type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    lo_slmp_problem_api->zif_custom_crm_order_update~delete_attachment(
+    mo_slpm_problem_api->zif_custom_crm_order_update~delete_attachment(
      exporting
             ip_guid = ip_guid
             ip_loio = ip_loio
@@ -146,23 +176,23 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_all_priorities.
 
-    data:
-    lo_slmp_problem_api type ref to zcl_slpm_problem_api.
+*    data:
+*    lo_slpm_problem_api type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    rt_priorities = lo_slmp_problem_api->zif_custom_crm_order_read~get_all_priorities_list(  ).
+    rt_priorities = mo_slpm_problem_api->zif_custom_crm_order_read~get_all_priorities_list(  ).
 
   endmethod.
 
   method zif_slpm_data_manager~get_attachment.
 
-    data:
-        lo_slmp_problem_api type ref to zcl_slpm_problem_api.
+*    data:
+*        lo_slpm_problem_api type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    er_attachment = lo_slmp_problem_api->zif_custom_crm_order_read~get_attachment_by_keys(
+    er_attachment = mo_slpm_problem_api->zif_custom_crm_order_read~get_attachment_by_keys(
         exporting
             ip_guid = ip_guid
             ip_loio = ip_loio
@@ -172,12 +202,12 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_attachments_list.
 
-    data:
-      lo_slmp_problem_api  type ref to zcl_slpm_problem_api.
+*    data:
+*      lo_slpm_problem_api  type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    lo_slmp_problem_api->zif_custom_crm_order_read~get_attachments_list_by_guid(
+    mo_slpm_problem_api->zif_custom_crm_order_read~get_attachments_list_by_guid(
     exporting
      ip_guid = ip_guid
     importing
@@ -187,13 +217,13 @@ class zcl_slpm_data_manager implementation.
   endmethod.
 
   method zif_slpm_data_manager~get_attachment_content.
+*
+*    data:
+*      lo_slpm_problem_api type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    data:
-      lo_slmp_problem_api type ref to zcl_slpm_problem_api.
-
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    lo_slmp_problem_api->zif_custom_crm_order_read~get_attachment_content_by_keys(
+    mo_slpm_problem_api->zif_custom_crm_order_read~get_attachment_content_by_keys(
       exporting
           ip_guid = ip_guid
           ip_loio = ip_loio
@@ -206,12 +236,12 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_last_text.
 
-    data:
-        lo_slmp_problem_api type ref to zcl_slpm_problem_api.
+*    data:
+*        lo_slpm_problem_api type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    lo_slmp_problem_api->zif_custom_crm_order_read~get_last_text( exporting ip_guid = ip_guid ).
+    mo_slpm_problem_api->zif_custom_crm_order_read~get_last_text( exporting ip_guid = ip_guid ).
 
   endmethod.
 
@@ -228,7 +258,7 @@ class zcl_slpm_data_manager implementation.
   method zif_slpm_data_manager~get_problem.
 
     data:
-      lo_slmp_problem_api            type ref to zcl_slpm_problem_api,
+      "  lo_slpm_problem_api            type ref to zcl_slpm_problem_api,
       ls_sl_problem_standard_package type zcrm_order_ts,
       ls_sl_problem_custom_package   type zcrm_order_ts_sl_problem,
       lo_custom_fields               type ref to data,
@@ -236,21 +266,21 @@ class zcl_slpm_data_manager implementation.
 
     field-symbols <ls_custom_fields> type any table.
 
-    if io_slmp_problem_api is bound.
+*    if io_slpm_problem_api is bound.
+*
+*      lo_slpm_problem_api = io_slpm_problem_api.
+*
+*    else.
+*
+*      lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
+*
+*    endif.
 
-      lo_slmp_problem_api = io_slmp_problem_api.
-
-    else.
-
-      lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    endif.
-
-    ls_sl_problem_standard_package = lo_slmp_problem_api->zif_custom_crm_order_read~get_standard_fields_by_guid( ip_guid ).
+    ls_sl_problem_standard_package = mo_slpm_problem_api->zif_custom_crm_order_read~get_standard_fields_by_guid( ip_guid ).
 
     " Getting additional fields package
 
-    call method lo_slmp_problem_api->zif_custom_crm_order_read~get_custom_fields_by_guid
+    call method mo_slpm_problem_api->zif_custom_crm_order_read~get_custom_fields_by_guid
       exporting
         ip_guid   = ip_guid
       importing
@@ -272,9 +302,6 @@ class zcl_slpm_data_manager implementation.
 
     move-corresponding ls_sl_problem_standard_package to es_result.
 
-
-
-
     " Adding problem non-database fields
 
     add_problem_non_db_fields(
@@ -285,22 +312,24 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_problems_list.
 
-    data: lo_slpm_problem_api type ref to zcl_slpm_problem_api,
-          lt_crm_guids        type zcrm_order_tt_guids,
-          ls_crm_order_ts     type  zcrm_order_ts,
-          ls_result           like line of et_result,
-          lv_include_record   type ac_bool,
-          lr_entity           type ref to data,
-          lo_sorted_table     type ref to data,
-          lo_slpm_user        type ref to zif_slpm_user,
-          lv_log_record_text  type string,
-          lv_product_id       type comt_product_id.
+    data:
+
+      "lo_slpm_problem_api type ref to zcl_slpm_problem_api,
+      lt_crm_guids       type zcrm_order_tt_guids,
+      ls_crm_order_ts    type  zcrm_order_ts,
+      ls_result          like line of et_result,
+      lv_include_record  type ac_bool,
+      lr_entity          type ref to data,
+      lo_sorted_table    type ref to data,
+      lo_slpm_user       type ref to zif_slpm_user,
+      lv_log_record_text type string,
+      lv_product_id      type comt_product_id.
 
     field-symbols: <ls_sorted_table> type any table.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    create object lo_slpm_problem_api.
-
-    lt_crm_guids = lo_slpm_problem_api->zif_custom_crm_order_read~get_guids_list(  ).
+    lt_crm_guids = mo_slpm_problem_api->zif_custom_crm_order_read~get_guids_list(  ).
 
     if lt_crm_guids is not initial.
 
@@ -311,7 +340,8 @@ class zcl_slpm_data_manager implementation.
         ls_result = me->zif_slpm_data_manager~get_problem(
                  exporting
                    ip_guid = <ls_crm_guid>-guid
-                   io_slmp_problem_api = lo_slpm_problem_api ).
+                  " io_slpm_problem_api = mo_slpm_problem_api
+                   ).
 
         " User can only see the companies for which he/she is authorized
 
@@ -350,7 +380,7 @@ class zcl_slpm_data_manager implementation.
 
           get reference of ls_result into lr_entity.
 
-          lo_slpm_problem_api->zif_custom_crm_order_organizer~is_order_matching_to_filters(
+          mo_slpm_problem_api->zif_custom_crm_order_organizer~is_order_matching_to_filters(
               exporting
                           ir_entity         = lr_entity
                           it_set_filters    = it_filters
@@ -374,7 +404,7 @@ class zcl_slpm_data_manager implementation.
 
         get reference of et_result into lr_entity.
 
-        lo_slpm_problem_api->zif_custom_crm_order_organizer~sort_orders(
+        mo_slpm_problem_api->zif_custom_crm_order_organizer~sort_orders(
           exporting
             ir_entity = lr_entity
             it_order  =     it_order
@@ -394,12 +424,12 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_texts.
 
-    data:
-        lo_slmp_problem_api  type ref to zcl_slpm_problem_api.
+*    data:
+*        lo_slpm_problem_api  type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
-
-    lo_slmp_problem_api->zif_custom_crm_order_read~get_all_texts(
+    mo_slpm_problem_api->zif_custom_crm_order_read~get_all_texts(
      exporting ip_guid = ip_guid
      importing et_texts = et_texts ).
 
@@ -410,6 +440,7 @@ class zcl_slpm_data_manager implementation.
     mo_active_configuration = io_active_configuration.
     mo_system_user = io_system_user.
     me->set_app_logger(  ).
+    mo_slpm_problem_api = new zcl_slpm_problem_api( io_active_configuration ).
 
   endmethod.
 
@@ -417,14 +448,14 @@ class zcl_slpm_data_manager implementation.
   method zif_slpm_data_manager~update_problem.
 
     data:
-      lo_slmp_problem_api type ref to zcl_slpm_problem_api,
+      "lo_slpm_problem_api type ref to zcl_slpm_problem_api,
       lr_problem          type ref to data.
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     get reference of is_problem into lr_problem.
 
-    lo_slmp_problem_api->zif_custom_crm_order_update~update_order(
+    mo_slpm_problem_api->zif_custom_crm_order_update~update_order(
          exporting
          ir_entity = lr_problem
          ip_guid = ip_guid ).
@@ -440,16 +471,17 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_list_of_possible_statuses.
 
-    data: lv_possible_status_list type char200,
-          lt_possible_status_list type table of j_estat,
-          lo_slmp_problem_api     type ref to zcl_slpm_problem_api,
-          lt_all_statuses         type zcrm_order_tt_statuses,
-          ls_status               type zcrm_order_ts_status.
+    data:
+      lv_possible_status_list type char200,
+      lt_possible_status_list type table of j_estat,
+      "   lo_slpm_problem_api     type ref to zcl_slpm_problem_api,
+      lt_all_statuses         type zcrm_order_tt_statuses,
+      ls_status               type zcrm_order_ts_status.
 
 
-    lo_slmp_problem_api = new zcl_slpm_problem_api(  ).
+    "   lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
-    lt_all_statuses = lo_slmp_problem_api->zif_custom_crm_order_read~get_all_statuses_list(  ).
+    lt_all_statuses = mo_slpm_problem_api->zif_custom_crm_order_read~get_all_statuses_list(  ).
 
     select single statuslist into lv_possible_status_list from zslpm_stat_flow
         where status eq ip_status.
@@ -493,7 +525,7 @@ class zcl_slpm_data_manager implementation.
         changing
         cs_problem = cs_problem ).
 
-    " Requester company name
+    " Requester company name and system details
 
     if cs_problem-companybusinesspartner is not initial.
 
@@ -503,26 +535,60 @@ class zcl_slpm_data_manager implementation.
 
       cs_problem-companyname = lo_company->get_company_name(  ).
 
+      " Customer system details
+
+      if cs_problem-sapsystemname is not initial.
+
+        data lt_customer_systems type zslpm_tt_systems.
+
+        try.
+
+            lt_customer_systems = lo_slpm_customer->get_slpm_systems_of_customer(  ).
+
+            cs_problem-sapsystemdescription = lt_customer_systems[ sapsystemname = cs_problem-sapsystemname ]-description.
+            cs_problem-sapsystemrole = lt_customer_systems[ sapsystemname = cs_problem-sapsystemname ]-role.
+
+
+          catch cx_sy_itab_line_not_found.
+
+        endtry.
+
+      endif.
+
+      " IRT history available
+
+      cs_problem-irthistoryavailable = me->is_irt_history_available(  cs_problem-guid  ).
+
+      " MPT history available
+
+      cs_problem-mpthistoryavailable = me->is_mpt_history_available(  cs_problem-guid  ).
+
+      " Stored IRT percent
+
+      cs_problem-storedirtperc = me->get_stored_irt_perc(  cs_problem-guid  ).
+
     endif.
 
     " Created internally flag
 
     cs_problem-createdinternally = me->is_requester_bp_in_intern_pool( cs_problem-requestorbusinesspartner ).
 
-    " SLAs on Hold flag for cases if SLAs are not overdue
+    " SLAs on Hold flag
 
-    if ( cs_problem-irt_icon_bsp ne 'OVERDUE' ) and  ( cs_problem-mpt_icon_bsp ne 'OVERDUE' ).
+    "if ( cs_problem-irt_icon_bsp ne 'OVERDUE' ) and  ( cs_problem-mpt_icon_bsp ne 'OVERDUE' ).
 
-      cs_problem-slasonhold = switch char4(  cs_problem-status
-                    when 'E0003'    then abap_true
+    cs_problem-irtslaonhold = switch char4(  cs_problem-status
+                  when 'E0017'    then abap_true
+                      else abap_false ).
+
+    cs_problem-mptslaonhold = switch char4(  cs_problem-status
                     when 'E0017'    then abap_true
-                        else abap_false ).
+                    when 'E0003'    then abap_true
+                    when 'E0005'    then abap_true
+                    else abap_false ).
 
-    endif.
 
-    " Last stored IRT SLA
-
-    cs_problem-storedirtperc = me->get_stored_irt_perc( cs_problem-guid ).
+    "endif.
 
   endmethod.
 
@@ -600,39 +666,70 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_list_of_processors.
 
-    data: lv_proc_pool_org_unit     type pd_objid_r,
-          lo_organizational_model   type ref to zif_organizational_model,
-          lt_proc_pool_assigned_pos type zorg_model_tt_positions,
-          ls_processor              type zslpm_ts_user.
+    data:
+      lv_proc_pool_org_unit   type pd_objid_r,
+      lo_organizational_model type ref to zif_organizational_model,
+      ls_processor            type zslpm_ts_user,
+      lv_bp_in_processing     type bu_partner.
 
-    lv_proc_pool_org_unit = me->get_processors_pool_org_unit(  ).
 
-    if lv_proc_pool_org_unit is not initial.
 
-      lo_organizational_model = new zcl_organizational_model( lv_proc_pool_org_unit ).
+    if mt_proc_pool_assigned_pos is initial.
 
-      lt_proc_pool_assigned_pos = lo_organizational_model->get_assigned_pos_of_org_unit(  ).
+      lv_proc_pool_org_unit = me->get_processors_pool_org_unit(  ).
 
-      loop at lt_proc_pool_assigned_pos assigning field-symbol(<ls_proc_pool_assigned_pos>).
+      if lv_proc_pool_org_unit is not initial.
 
-        ls_processor-businesspartner = <ls_proc_pool_assigned_pos>-businesspartner.
-        ls_processor-fullname = <ls_proc_pool_assigned_pos>-fullname.
-        ls_processor-username = <ls_proc_pool_assigned_pos>-businesspartner.
-        ls_processor-searchtag1 = <ls_proc_pool_assigned_pos>-stext.
+        lo_organizational_model = new zcl_organizational_model( lv_proc_pool_org_unit ).
 
-        append ls_processor to rt_processors.
+        mt_proc_pool_assigned_pos = lo_organizational_model->get_assigned_pos_of_org_unit(  ).
+
+        sort mt_proc_pool_assigned_pos by businesspartner.
+
+      endif.
+
+    endif.
+
+
+    if mt_proc_pool_assigned_pos is not initial.
+
+      loop at mt_proc_pool_assigned_pos assigning field-symbol(<ls_proc_pool_assigned_pos>).
+
+        if ( lv_bp_in_processing is initial ).
+
+          ls_processor-businesspartner = <ls_proc_pool_assigned_pos>-businesspartner.
+          ls_processor-fullname = <ls_proc_pool_assigned_pos>-fullname.
+          ls_processor-username = <ls_proc_pool_assigned_pos>-businesspartner.
+          ls_processor-searchtag1 = <ls_proc_pool_assigned_pos>-stext.
+
+          lv_bp_in_processing = <ls_proc_pool_assigned_pos>-businesspartner.
+
+        elseif lv_bp_in_processing eq <ls_proc_pool_assigned_pos>-businesspartner.
+
+          ls_processor-searchtag1 = |{ ls_processor-searchtag1 }| && |, | && |{ <ls_proc_pool_assigned_pos>-stext }|.
+
+        else.
+
+          append ls_processor to rt_processors.
+
+          clear lv_bp_in_processing.
+
+          ls_processor-businesspartner = <ls_proc_pool_assigned_pos>-businesspartner.
+          ls_processor-fullname = <ls_proc_pool_assigned_pos>-fullname.
+          ls_processor-username = <ls_proc_pool_assigned_pos>-businesspartner.
+          ls_processor-searchtag1 = <ls_proc_pool_assigned_pos>-stext.
+
+          lv_bp_in_processing = <ls_proc_pool_assigned_pos>-businesspartner.
+
+        endif.
 
       endloop.
 
-*      if rt_processors is not initial.
-*
-*       clear ls_processor.
-*       ls_processor-businesspartner = '0000000000'.
-*       append ls_processor to rt_processors.
-*
-*      endif.
+      append ls_processor to rt_processors.
+
 
     endif.
+
 
   endmethod.
 
@@ -644,11 +741,12 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_list_of_companies.
 
-    data: lt_companies       type crmt_bu_partner_t,
-          ls_company         type zslpm_ts_company,
-          lo_company         type ref to zif_company,
-          lo_slpm_user       type ref to zif_slpm_user,
-          lv_log_record_text type string.
+    data:
+      lt_companies       type crmt_bu_partner_t,
+      ls_company         type zslpm_ts_company,
+      lo_company         type ref to zif_company,
+      lo_slpm_user       type ref to zif_slpm_user,
+      lv_log_record_text type string.
 
     " Get distinct companies from ZSLPM_CUST_PROD
 
@@ -698,16 +796,19 @@ class zcl_slpm_data_manager implementation.
 
   method is_requester_bp_in_intern_pool.
 
-    data: lt_internal_pool type zslpm_tt_users,
+    data: "lt_internal_pool type zslpm_tt_users,
           lo_requester_bp  type ref to zif_bp_master_data.
 
-    lt_internal_pool = me->zif_slpm_data_manager~get_list_of_processors(  ).
 
-    if lt_internal_pool is not initial.
+    if mt_internal_pool is initial.
+      mt_internal_pool = me->zif_slpm_data_manager~get_list_of_processors(  ).
+    endif.
+
+    if mt_internal_pool is not initial.
 
       lo_requester_bp = new zcl_bp_master_data( ip_requester_bp ).
 
-      if line_exists( lt_internal_pool[ businesspartner = lo_requester_bp->get_bp_number(  ) ] ).
+      if line_exists( mt_internal_pool[ businesspartner = lo_requester_bp->get_bp_number(  ) ] ).
 
         rp_result = abap_true.
 
@@ -737,17 +838,144 @@ class zcl_slpm_data_manager implementation.
   endmethod.
 
 
-  method get_stored_irt_perc.
+  method get_last_slpm_irt_hist.
 
-    " Taking last stored IRT SLA
-
-    select irtperc
-        from zslpm_irt_hist
-        into (rp_stored_irt_perc )
-       up to 1 rows
-         where problemguid = ip_guid order by update_timestamp descending.
+    select guid apptguid problemguid irttimestamp irttimezone irtperc update_timestamp update_timezone
+      from zslpm_irt_hist
+      into corresponding fields of rs_slpm_irt_hist
+     up to 1 rows
+       where problemguid = ip_guid order by update_timestamp descending.
 
     endselect.
+
+  endmethod.
+
+  method get_stored_irt_timestamp.
+
+    rp_timestamp = me->get_last_slpm_irt_hist( ip_guid )-irttimestamp.
+
+  endmethod.
+
+  method get_stored_irt_perc.
+
+    rp_stored_irt_perc = me->get_last_slpm_irt_hist( ip_guid )-irtperc.
+
+  endmethod.
+
+  method zif_slpm_data_manager~get_all_statuses.
+
+*    data:
+*        lo_slpm_problem_api     type ref to zcl_slpm_problem_api.
+*
+*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
+
+    rt_statuses = mo_slpm_problem_api->zif_custom_crm_order_read~get_all_statuses_list(  ).
+
+  endmethod.
+
+  method zif_slpm_data_manager~get_problem_sla_irt_history.
+
+    data:
+      lt_sla_irt_history type table of zslpm_irt_hist,
+      ls_sla_irt_history type zslpm_ts_irt_hist,
+      lt_statuses        type zcrm_order_tt_statuses,
+      ls_status          type zcrm_order_ts_status,
+      ls_priority        type zcrm_order_ts_priority,
+      lt_priorities      type zcrm_order_tt_priorities.
+
+    select guid apptguid problemguid irttimestamp irttimezone irtperc update_timestamp update_timezone statusin
+        statusout priorityin priorityout from zslpm_irt_hist into corresponding fields of table lt_sla_irt_history
+        where problemguid = ip_guid.
+
+    loop at lt_sla_irt_history assigning field-symbol(<ls_sla_irt_history>).
+
+      move-corresponding <ls_sla_irt_history> to ls_sla_irt_history.
+
+      try.
+
+          lt_statuses = me->zif_slpm_data_manager~get_all_statuses(  ).
+          lt_priorities = me->zif_slpm_data_manager~get_all_priorities(  ).
+
+          ls_sla_irt_history-statusintext = lt_statuses[ code = <ls_sla_irt_history>-statusin ]-text.
+          ls_sla_irt_history-statusouttext = lt_statuses[ code = <ls_sla_irt_history>-statusout ]-text.
+
+          ls_sla_irt_history-priorityintext = lt_priorities[ code = <ls_sla_irt_history>-priorityin ]-description.
+          ls_sla_irt_history-priorityouttext = lt_priorities[ code = <ls_sla_irt_history>-priorityout ]-description.
+
+          append ls_sla_irt_history to rt_sla_irt_history.
+
+        catch cx_sy_itab_line_not_found.
+
+      endtry.
+
+    endloop.
+
+  endmethod.
+
+  method is_irt_history_available.
+
+    select count( * )
+      from zslpm_irt_hist up to 1 rows
+      where problemguid = ip_guid.
+
+    if sy-subrc eq 0.
+      rp_available = abap_true.
+    endif.
+
+
+
+  endmethod.
+
+  method is_mpt_history_available.
+
+    select count( * )
+    from zslpm_mpt_hist up to 1 rows
+    where problemguid = ip_guid.
+
+    if sy-subrc eq 0.
+      rp_available = abap_true.
+    endif.
+
+
+  endmethod.
+
+  method zif_slpm_data_manager~get_problem_sla_mpt_history.
+
+
+    data:
+      lt_sla_mpt_history type table of zslpm_mpt_hist,
+      ls_sla_mpt_history type zslpm_ts_mpt_hist,
+      lt_statuses        type zcrm_order_tt_statuses,
+      ls_status          type zcrm_order_ts_status,
+      ls_priority        type zcrm_order_ts_priority,
+      lt_priorities      type zcrm_order_tt_priorities.
+
+    select guid apptguid problemguid mpttimestamp mpttimezone mptperc update_timestamp update_timezone statusin
+        statusout priorityin priorityout from zslpm_mpt_hist into corresponding fields of table lt_sla_mpt_history
+        where problemguid = ip_guid.
+
+    loop at lt_sla_mpt_history assigning field-symbol(<ls_sla_mpt_history>).
+
+      move-corresponding <ls_sla_mpt_history> to ls_sla_mpt_history.
+
+      try.
+
+          lt_statuses = me->zif_slpm_data_manager~get_all_statuses(  ).
+          lt_priorities = me->zif_slpm_data_manager~get_all_priorities(  ).
+
+          ls_sla_mpt_history-statusintext = lt_statuses[ code = <ls_sla_mpt_history>-statusin ]-text.
+          ls_sla_mpt_history-statusouttext = lt_statuses[ code = <ls_sla_mpt_history>-statusout ]-text.
+
+          ls_sla_mpt_history-priorityintext = lt_priorities[ code = <ls_sla_mpt_history>-priorityin ]-description.
+          ls_sla_mpt_history-priorityouttext = lt_priorities[ code = <ls_sla_mpt_history>-priorityout ]-description.
+
+          append ls_sla_mpt_history to rt_sla_mpt_history.
+
+        catch cx_sy_itab_line_not_found.
+
+      endtry.
+
+    endloop.
 
   endmethod.
 

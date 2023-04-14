@@ -8,6 +8,9 @@ class zcl_slpm_dpc_ext definition
     methods /iwbep/if_mgw_appl_srv_runtime~create_stream redefinition.
     methods /iwbep/if_mgw_appl_srv_runtime~delete_stream redefinition.
   protected section.
+    methods slampthistoryset_get_entityset redefinition.
+    methods slairthistoryset_get_entityset redefinition.
+    methods systemset_get_entityset redefinition.
     methods frontendconfigur_get_entityset redefinition.
     methods companyset_get_entityset redefinition.
     methods processorset_get_entityset redefinition.
@@ -580,7 +583,7 @@ class zcl_slpm_dpc_ext implementation.
           clear ls_entity.
         endloop.
 
-      catch zcx_system_user_exc into data(lcx_process_exception).
+      catch zcx_system_user_exc zcx_slpm_configuration_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -719,25 +722,18 @@ class zcl_slpm_dpc_ext implementation.
     data: lo_slpm_data_provider type ref to zif_slpm_data_manager,
           lv_status             type j_estat.
 
+    lv_status = get_filter_value(
+       exporting
+         io_tech_request_context = io_tech_request_context
+         ip_property             = 'CODE').
+
     try.
-
-        lv_status = get_filter_value(
-           exporting
-             io_tech_request_context = io_tech_request_context
-             ip_property             = 'CODE').
-
-        if lv_status is initial.
-
-          raise exception type zcx_slpm_odata_exc
-            exporting
-              textid    = zcx_slpm_odata_exc=>filter_not_provided_for_entity
-              mv_entity = iv_entity_name.
-
-        endif.
-
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        et_entityset = lo_slpm_data_provider->get_list_of_possible_statuses( lv_status ).
+        et_entityset = cond #(
+            when lv_status is initial then lo_slpm_data_provider->get_all_statuses(  )
+            else lo_slpm_data_provider->get_list_of_possible_statuses( lv_status )
+        ).
 
       catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
         zcx_assistant_utilities_exc zcx_slpm_configuration_exc
@@ -745,8 +741,6 @@ class zcl_slpm_dpc_ext implementation.
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
-
-
 
   endmethod.
 
@@ -804,6 +798,12 @@ class zcl_slpm_dpc_ext implementation.
         ls_entity-companyname = ls_company-companyname.
 
         ls_entity-authtocreateproblemonbehalf = lo_slpm_user->is_auth_to_create_on_behalf(  ).
+
+        ls_entity-authtocreateproblem = lo_slpm_user->is_auth_to_create_problems(  ).
+
+        ls_entity-authtoreadproblems = lo_slpm_user->is_auth_to_read_problems(  ).
+
+        ls_entity-authtoupdateproblem = lo_slpm_user->is_auth_to_update_problems(  ).
 
         append ls_entity to et_entityset.
 
@@ -882,6 +882,104 @@ class zcl_slpm_dpc_ext implementation.
 
     endtry.
 
+
+  endmethod.
+
+  method systemset_get_entityset.
+
+    data:
+      ls_entity             like line of et_entityset,
+      lo_slpm_customer      type ref to zif_slpm_customer,
+      lv_filter_customer_bp type bu_partner.
+
+    " Providing all systems of a SLPM customer
+
+    " Get filter of Customer BP
+
+    lv_filter_customer_bp = get_filter_value(
+       exporting
+         io_tech_request_context = io_tech_request_context
+         ip_property             = 'COMPANYBUSINESSPARTNER').
+
+
+    try.
+
+        if lv_filter_customer_bp is not initial.
+
+          lo_slpm_customer  = new zcl_slpm_customer( lv_filter_customer_bp  ).
+          et_entityset = lo_slpm_customer->get_slpm_systems_of_customer(  ).
+
+        endif.
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+          zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+          zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
+
+
+  endmethod.
+
+  method slairthistoryset_get_entityset.
+
+    data: lv_guid               type crmt_object_guid,
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
+
+
+    read table it_key_tab into data(ls_key_tab) with key name = 'Guid'.
+
+    lv_guid = ls_key_tab-value.
+
+    if lv_guid is not initial.
+
+      try.
+
+          lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+          et_entityset = lo_slpm_data_provider->get_problem_sla_irt_history( exporting
+              ip_guid = lv_guid ).
+
+
+        catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+            zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+            zcx_system_user_exc into data(lcx_process_exception).
+          raise_exception( lcx_process_exception->get_text(  ) ).
+
+      endtry.
+
+    endif.
+
+  endmethod.
+
+  method slampthistoryset_get_entityset.
+
+    data: lv_guid               type crmt_object_guid,
+          lo_slpm_data_provider type ref to zif_slpm_data_manager.
+
+
+    read table it_key_tab into data(ls_key_tab) with key name = 'Guid'.
+
+    lv_guid = ls_key_tab-value.
+
+    if lv_guid is not initial.
+
+      try.
+
+          lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+          et_entityset = lo_slpm_data_provider->get_problem_sla_mpt_history( exporting
+              ip_guid = lv_guid ).
+
+
+        catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+            zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+            zcx_system_user_exc into data(lcx_process_exception).
+          raise_exception( lcx_process_exception->get_text(  ) ).
+
+      endtry.
+
+    endif.
 
   endmethod.
 

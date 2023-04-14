@@ -3,17 +3,17 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <TOBJ>
-    <OBJCT>ZPRCRPROD</OBJCT>
-    <FIEL1>ZPROD_ID</FIEL1>
-    <OCLSS>ZSLP</OCLSS>
+    <OBJCT>ZPRTYR</OBJCT>
+    <FIEL1>PR_TYPE</FIEL1>
+    <OCLSS>ZCRM</OCLSS>
    </TOBJ>
    <TOBJT>
     <LANGU>E</LANGU>
-    <OBJECT>ZPRCRPROD</OBJECT>
-    <TTEXT>Problem creation for Product</TTEXT>
+    <OBJECT>ZPRTYR</OBJECT>
+    <TTEXT>Process type read</TTEXT>
    </TOBJT>
    <TOBJVORFLG>
-    <OBJCT>ZPRCRPROD</OBJCT>
+    <OBJCT>ZPRTYR</OBJCT>
    </TOBJVORFLG>
   </asx:values>
  </asx:abap>

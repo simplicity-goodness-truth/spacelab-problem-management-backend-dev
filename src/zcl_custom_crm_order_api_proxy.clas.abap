@@ -9,110 +9,59 @@ class zcl_custom_crm_order_api_proxy definition
       zif_custom_crm_order_read,
       zif_custom_crm_order_update,
       zif_custom_crm_order_organizer.
+
     methods constructor
+      importing
+        ip_process_type type crmt_process_type
       raising
-        zcx_crm_order_api_exc.
+        zcx_crm_order_api_exc
+        zcx_system_user_exc.
 
   protected section.
   private section.
 
-    data: mv_user_authorized_for_init   type abap_bool,
-          mv_user_authorized_for_read   type abap_bool,
-          mv_user_authorized_for_create type abap_bool,
-          mv_user_authorized_for_update type abap_bool,
-          mo_custom_crm_order_init      type ref to zif_custom_crm_order_init,
-          mo_custom_crm_order_read      type ref to zif_custom_crm_order_read,
-          mo_custom_crm_order_create    type ref to zif_custom_crm_order_create,
-          mo_custom_crm_order_update    type ref to zif_custom_crm_order_update,
-          mo_custom_crm_order_organizer type ref to zif_custom_crm_order_organizer.
+    data:
+      mv_system_user                type ref to zif_system_user,
+      mv_crm_user                   type ref to zif_crm_user,
+      mv_process_type               type crmt_process_type,
+      mo_custom_crm_order_init      type ref to zif_custom_crm_order_init,
+      mo_custom_crm_order_read      type ref to zif_custom_crm_order_read,
+      mo_custom_crm_order_create    type ref to zif_custom_crm_order_create,
+      mo_custom_crm_order_update    type ref to zif_custom_crm_order_update,
+      mo_custom_crm_order_organizer type ref to zif_custom_crm_order_organizer.
 
-    methods: is_user_authorized_to_read
-      raising zcx_crm_order_api_exc,
-      is_user_authorized_to_create
-        raising zcx_crm_order_api_exc,
-      is_user_authorized_to_update
-        raising zcx_crm_order_api_exc,
-      is_user_authorized_to_init
-        raising zcx_crm_order_api_exc.
+    methods:
+      set_mo_custom_crm_order_create
+        raising
+          zcx_crm_order_api_exc,
+
+      set_mo_custom_crm_order_update
+        raising
+          zcx_crm_order_api_exc.
+
 
 endclass.
-
-
 
 class zcl_custom_crm_order_api_proxy implementation.
 
 
   method constructor.
 
-    me->is_user_authorized_to_init(  ).
-    me->is_user_authorized_to_read(  ).
+    mv_process_type = ip_process_type.
 
-    if ( mv_user_authorized_for_init eq abap_true ).
+    mv_crm_user = new zcl_crm_user( sy-uname ).
+
+    if ( mv_crm_user->is_auth_to_read_on_proc_type( mv_process_type ) eq abap_true ).
 
       create object mo_custom_crm_order_init type zcl_custom_crm_order_api.
 
       " If user is authorized for read operation, we create additional reference for create and update
       " Create and update authorizations will be checked in corresponding methods
 
-      if ( mv_user_authorized_for_read eq abap_true ).
+      mo_custom_crm_order_read ?= mo_custom_crm_order_init.
+      mo_custom_crm_order_organizer ?= mo_custom_crm_order_init.
 
-        mo_custom_crm_order_read ?= mo_custom_crm_order_init.
-        mo_custom_crm_order_create ?= mo_custom_crm_order_init.
-        mo_custom_crm_order_update ?= mo_custom_crm_order_init.
-        mo_custom_crm_order_organizer ?= mo_custom_crm_order_init.
-
-      endif. "  if ( mv_user_authorized_for_read eq abap_true )
-
-
-    endif. " if ( mv_user_authorized_for_init eq abap_true )
-
-  endmethod.
-
-
-  method is_user_authorized_to_create.
-
-    mv_user_authorized_for_create = abap_true.
-
-    if ( mv_user_authorized_for_create eq abap_false ).
-
-      " User has no authorizations to create process type
-
-      raise exception type zcx_crm_order_api_exc
-        exporting
-          textid  = zcx_crm_order_api_exc=>not_authorized_for_create
-          ip_user = sy-uname.
-
-    endif.
-
-  endmethod.
-
-
-  method is_user_authorized_to_init.
-
-    mv_user_authorized_for_init = abap_true.
-
-    if ( mv_user_authorized_for_init eq abap_false ).
-
-      " User has no authorizations to initialize process type
-
-      raise exception type zcx_crm_order_api_exc
-        exporting
-          textid  = zcx_crm_order_api_exc=>not_authorized_for_init
-          ip_user = sy-uname.
-
-    endif.
-
-
-  endmethod.
-
-
-  method is_user_authorized_to_read.
-
-    mv_user_authorized_for_read = abap_true.
-
-    if ( mv_user_authorized_for_read eq abap_false ).
-
-      " User has no authorizations to read process type
+    else.
 
       raise exception type zcx_crm_order_api_exc
         exporting
@@ -124,26 +73,9 @@ class zcl_custom_crm_order_api_proxy implementation.
   endmethod.
 
 
-  method is_user_authorized_to_update.
-
-    mv_user_authorized_for_update = abap_true.
-
-    if ( mv_user_authorized_for_update eq abap_false ).
-
-      " User has no authorizations to update process type
-
-      raise exception type zcx_crm_order_api_exc
-        exporting
-          textid  = zcx_crm_order_api_exc=>not_authorized_for_update
-          ip_user = sy-uname.
-
-    endif.
-
-
-  endmethod.
-
-
   method zif_custom_crm_order_create~create_attachment.
+
+    me->set_mo_custom_crm_order_create( ).
 
     if ( mo_custom_crm_order_create is bound ).
 
@@ -161,6 +93,8 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   method zif_custom_crm_order_create~create_text.
 
+    me->set_mo_custom_crm_order_create( ).
+
     if ( mo_custom_crm_order_create is bound ).
 
       mo_custom_crm_order_create->create_text(
@@ -173,12 +107,11 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
-
   method zif_custom_crm_order_create~create_with_std_and_cust_flds.
 
-    me->is_user_authorized_to_create(  ).
+    me->set_mo_custom_crm_order_create( ).
 
-    if ( mv_user_authorized_for_create eq abap_true ) and ( mo_custom_crm_order_create is bound ).
+    if  ( mo_custom_crm_order_create is bound ).
 
       mo_custom_crm_order_create->create_with_std_and_cust_flds(
        exporting
@@ -472,6 +405,8 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   method zif_custom_crm_order_update~delete_attachment.
 
+    me->set_mo_custom_crm_order_update(  ).
+
     if ( mo_custom_crm_order_update is bound ).
 
       mo_custom_crm_order_update->delete_attachment(
@@ -484,12 +419,11 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
-
   method zif_custom_crm_order_update~update_order.
 
-    me->is_user_authorized_to_update(  ).
+    me->set_mo_custom_crm_order_update(  ).
 
-    if ( mv_user_authorized_for_update eq abap_true ) and ( mo_custom_crm_order_update is bound ).
+    if  ( mo_custom_crm_order_update is bound ).
 
       mo_custom_crm_order_update->update_order(
        exporting
@@ -500,7 +434,6 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
-
   method zif_custom_crm_order_read~get_all_appointments_by_guid.
 
     if ( mo_custom_crm_order_read is bound ).
@@ -508,6 +441,44 @@ class zcl_custom_crm_order_api_proxy implementation.
       rt_appointments = mo_custom_crm_order_read->get_all_appointments_by_guid( ip_guid ).
 
     endif.
+
+  endmethod.
+
+  method set_mo_custom_crm_order_create.
+
+    if ( mo_custom_crm_order_create is not bound ) and
+        ( mv_crm_user->is_auth_to_create_on_proc_type( mv_process_type ) eq abap_true ).
+
+      mo_custom_crm_order_create ?= mo_custom_crm_order_init.
+
+    else.
+
+      raise exception type zcx_crm_order_api_exc
+        exporting
+          textid  = zcx_crm_order_api_exc=>not_authorized_for_create
+          ip_user = sy-uname.
+
+    endif.
+
+  endmethod.
+
+  method set_mo_custom_crm_order_update.
+
+
+    if ( mo_custom_crm_order_update is not bound ) and
+    ( mv_crm_user->is_auth_to_update_on_proc_type( mv_process_type ) eq abap_true ).
+
+      mo_custom_crm_order_update ?= mo_custom_crm_order_init.
+
+    else.
+
+      raise exception type zcx_crm_order_api_exc
+        exporting
+          textid  = zcx_crm_order_api_exc=>not_authorized_for_update
+          ip_user = sy-uname.
+
+    endif.
+
 
   endmethod.
 

@@ -50,4 +50,22 @@ class zcl_slpm_customer implementation.
   endmethod.
 
 
+  method zif_slpm_customer~get_slpm_systems_of_customer.
+
+    data: lv_bp_number               type bu_partner,
+          ls_slpm_system_of_customer type zslpm_ts_system.
+
+    lv_bp_number = me->zif_company~get_company_bp_number(  ).
+
+    if lv_bp_number is not initial.
+
+      select  customerbusinesspartner as companybusinesspartner sapsystemname installationnumber systemnumber description role
+        into corresponding fields of table  rt_slpm_systems_of_customer from zslpm_cust_syst
+        where customerbusinesspartner eq lv_bp_number.
+
+    endif.
+
+
+  endmethod.
+
 endclass.

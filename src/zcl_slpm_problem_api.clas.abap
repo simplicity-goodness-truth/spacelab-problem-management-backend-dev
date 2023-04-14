@@ -6,8 +6,12 @@ class zcl_slpm_problem_api definition
 
   public section.
     methods constructor
+      importing
+        io_active_configuration type ref to zif_slpm_configuration optional
       raising
-        zcx_crm_order_api_exc.
+        zcx_crm_order_api_exc
+        zcx_system_user_exc
+        zcx_slpm_configuration_exc.
 
   protected section.
   private section.
@@ -16,18 +20,12 @@ endclass.
 class zcl_slpm_problem_api implementation.
 
   method constructor.
-*    types:
-*      begin of ty_db_struct_fields_map,
-*        db_field     type name_feld,
-*        struct_field type name_komp,
-*        value        type ref to data,
-*      end of ty_db_struct_fields_map,
-*
-*      tt_db_struct_fields_map type standard table of ty_db_struct_fields_map with empty key.
 
-    data  lt_db_struct_fields_map type zcrm_order_tt_cust_fields_map.
+    data:
+      lt_db_struct_fields_map type zcrm_order_tt_cust_fields_map,
+      lv_sold_to_party        type crmt_partner_no.
 
-    super->constructor( ).
+    super->constructor( 'ZSLP' ).
 
     " Process type
 
@@ -53,29 +51,18 @@ class zcl_slpm_problem_api implementation.
           ( db_field = 'ZZFLD000000' struct_field = 'COMPANYBUSINESSPARTNER' )
           ( db_field = 'ZZFLD000001' struct_field = 'CONTACTEMAIL' )
           ( db_field = 'ZZFLD000002' struct_field = 'NOTIFYBYCONTACTEMAIL' )
+          ( db_field = 'ZZFLD000003' struct_field = 'SAPSYSTEMNAME' )
         ).
 
     zif_custom_crm_order_init~set_db_struct_fields_map( lt_db_struct_fields_map ).
 
     " Sold-to-party
 
-    zif_custom_crm_order_init~set_sold_to_party('0000000002').
+    lv_sold_to_party = io_active_configuration->get_parameter_value( 'DEFAULT_SOLD_TO_PARTY' ).
 
-*
-*    " Categories setting
-*
-*    me->mv_crm_category1 = me->get_crm_mand_cat_x_param( '1' ).
-*    me->mv_crm_category2 = me->get_crm_mand_cat_x_param( '2' ).
-*    me->mv_crm_category3 = me->get_crm_mand_cat_x_param( '3' ).
-*    me->mv_crm_category4 = me->get_crm_mand_cat_x_param( '4' ).
-*
-*    " Categorization schema
-*
-*    me->mv_crm_cat_schema = me->get_crm_mand_cat_schema_param( ).
+    zif_custom_crm_order_init~set_sold_to_party( lv_sold_to_party ).
 
   endmethod.
-
-
 
 
 endclass.

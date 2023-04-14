@@ -43,6 +43,24 @@ class zcx_slpm_data_manager_exc definition
         attr3 type scx_attrname value '',
         attr4 type scx_attrname value '',
       end of no_auth_for_creat_for_prod .
+    constants:
+      begin of not_authorized_for_create,
+        msgid type symsgid value 'ZSLPM_DATA_MANAGER',
+        msgno type symsgno value '007',
+        attr1 type scx_attrname value 'MV_SYSTEM_USER',
+        attr2 type scx_attrname value '',
+        attr3 type scx_attrname value '',
+        attr4 type scx_attrname value '',
+      end of not_authorized_for_create .
+    constants:
+      begin of not_authorized_for_update,
+        msgid type symsgid value 'ZSLPM_DATA_MANAGER',
+        msgno type symsgno value '008',
+        attr1 type scx_attrname value 'MV_SYSTEM_USER',
+        attr2 type scx_attrname value '',
+        attr3 type scx_attrname value '',
+        attr4 type scx_attrname value '',
+      end of not_authorized_for_update .
     class-data mv_system_user type xubname .
     class-data mv_error_message type string .
     class-data mv_company_bp type bu_partner .
@@ -55,7 +73,7 @@ class zcx_slpm_data_manager_exc definition
         !ip_system_user   type xubname optional
         !ip_error_message type string optional
         !ip_company_bp    type bu_partner optional
-        ip_product_id     type comt_product_id optional.
+        !ip_product_id    type comt_product_id optional .
   protected section.
   private section.
 endclass.

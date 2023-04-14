@@ -44,6 +44,18 @@
      <MSGNR>006</MSGNR>
      <TEXT>SLPM: user &amp;1 not authorized to create problems of product &amp;2</TEXT>
     </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZSLPM_DATA_MANAGER</ARBGB>
+     <MSGNR>007</MSGNR>
+     <TEXT>SLPM: user &amp;1 doesn&apos;t have authorizations to create problems</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZSLPM_DATA_MANAGER</ARBGB>
+     <MSGNR>008</MSGNR>
+     <TEXT>SLPM: user &amp;1 doesn&apos;t have authorizations to update problems</TEXT>
+    </T100>
    </T100>
   </asx:values>
  </asx:abap>

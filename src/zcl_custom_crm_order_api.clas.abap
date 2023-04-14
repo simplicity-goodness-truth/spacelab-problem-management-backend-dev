@@ -306,24 +306,24 @@ class zcl_custom_crm_order_api implementation.
 
     " Category
 
-    lo_cl_ags_crm_1o_api->get_subject(
-        importing
-            es_subject = ls_subject
-            et_subject = lt_subjects ).
-
-    if ls_subject is not initial.
-
-      es_result-catschemaid = ls_subject-asp_id.
-      es_result-catschemanodeid = ls_subject-cat_id.
-
-      " Getting text descriptions
-
-      lo_categorization_schema = new zcl_crm_categorization_schema( ip_asp_id = ls_subject-asp_id ).
-
-      es_result-catschemaname = lo_categorization_schema->get_asp_label(  ).
-      es_result-catschemaname = lo_categorization_schema->get_hierarchy_cat_label( ls_subject-cat_id ).
-
-    endif.
+*    lo_cl_ags_crm_1o_api->get_subject(
+*        importing
+*            es_subject = ls_subject
+*            et_subject = lt_subjects ).
+*
+*    if ls_subject is not initial.
+*
+*      es_result-catschemaid = ls_subject-asp_id.
+*      es_result-catschemanodeid = ls_subject-cat_id.
+*
+*      " Getting text descriptions
+*
+*      lo_categorization_schema = new zcl_crm_categorization_schema( ip_asp_id = ls_subject-asp_id ).
+*
+*      es_result-catschemaname = lo_categorization_schema->get_asp_label(  ).
+*      es_result-catschemaname = lo_categorization_schema->get_hierarchy_cat_label( ls_subject-cat_id ).
+*
+*    endif.
 
 
     " First response timestamp, time and date (duration 'SMIN_RESPF')
@@ -2154,11 +2154,16 @@ class zcl_custom_crm_order_api implementation.
 
     read table lt_texts assigning field-symbol(<text>) index 1.
 
-    es_text = get_text_details_odata(
-              is_text           = <text>
-              it_text_cust      = lt_text_cust
-              is_orderadm_h_wrk = ls_orderadm_h_wrk
-          ).
+
+    if <text> is assigned.
+
+      es_text = get_text_details_odata(
+                is_text           = <text>
+                it_text_cust      = lt_text_cust
+                is_orderadm_h_wrk = ls_orderadm_h_wrk
+            ).
+
+    endif.
 
 
   endmethod.
@@ -2187,8 +2192,13 @@ class zcl_custom_crm_order_api implementation.
 
   method zif_custom_crm_order_organizer~is_order_matching_to_filters.
 
-    data: lt_filter_sel_opt type /iwbep/t_cod_select_options,
-          lo_structure_ref  type ref to data.
+    data: lt_filter_sel_opt    type /iwbep/t_cod_select_options,
+          ls_filter_sel_opt    like line of lt_filter_sel_opt,
+          ls_bp_filter_sel_opt like line of lt_filter_sel_opt,
+          lo_structure_ref     type ref to data,
+          lo_descr_ref         type ref to cl_abap_typedescr,
+          lv_bp_number         type bu_partner,
+          lo_bp_master_data    type ref to zif_bp_master_data.
 
     field-symbols: <fs_structure> type any,
                    <fs_value>     type any.
@@ -2196,6 +2206,9 @@ class zcl_custom_crm_order_api implementation.
     " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
     "   Decode incoming abstract entity
     " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
+
+
+
 
     create data lo_structure_ref type standard table of (mv_structure_name).
     assign lo_structure_ref->* to <fs_structure>.
@@ -2208,19 +2221,82 @@ class zcl_custom_crm_order_api implementation.
 
     loop at it_set_filters assigning field-symbol(<ls_set_filters>).
 
-      clear lt_filter_sel_opt.
-      lt_filter_sel_opt = <ls_set_filters>-select_options.
-
       assign component <ls_set_filters>-property of structure <fs_structure> to <fs_value>.
 
       if ( sy-subrc eq 0 ).
 
-        if <fs_value> not in lt_filter_sel_opt.
+        clear: lt_filter_sel_opt,
+        ls_filter_sel_opt.
 
-          cp_include_record = abap_false.
-          exit.
+        lo_descr_ref = cl_abap_typedescr=>describe_by_data( <fs_value> ).
 
-        endif.
+        " Special cases for various types
+
+        case lo_descr_ref->absolute_name.
+
+          when '\TYPE=BU_PARTNER'.
+
+            " If we have Business Partners for filtering, we need to add leading zeroes
+            " to LOW and HIGH values of filter
+            " In addition we have to add leading zeroes for structure value to keep filter and value
+            " in a same format of BU_PARTNER with leading zeroes
+
+            clear: ls_filter_sel_opt, lv_bp_number, lo_bp_master_data, ls_bp_filter_sel_opt.
+
+            loop at <ls_set_filters>-select_options assigning field-symbol(<sel_option>).
+
+              ls_filter_sel_opt =  <sel_option>.
+
+              ls_bp_filter_sel_opt-option = ls_filter_sel_opt-option.
+              ls_bp_filter_sel_opt-sign = ls_filter_sel_opt-sign.
+
+              if ls_filter_sel_opt-low is not initial.
+                lv_bp_number = ls_filter_sel_opt-low.
+                lo_bp_master_data  = new zcl_bp_master_data( lv_bp_number ).
+                ls_bp_filter_sel_opt-low = lo_bp_master_data->get_bp_number( ).
+
+              endif.
+
+              clear: lv_bp_number, lo_bp_master_data.
+
+              if ls_filter_sel_opt-high is not initial.
+
+                lv_bp_number = ls_filter_sel_opt-high.
+                lo_bp_master_data  = new zcl_bp_master_data( lv_bp_number ).
+                ls_bp_filter_sel_opt-high = lo_bp_master_data->get_bp_number( ).
+
+              endif.
+
+              append ls_bp_filter_sel_opt to lt_filter_sel_opt.
+
+            endloop.
+
+            lv_bp_number = <fs_value>.
+            lo_bp_master_data  = new zcl_bp_master_data( lv_bp_number ).
+            lv_bp_number = lo_bp_master_data->get_bp_number( ).
+
+            if ( lt_filter_sel_opt is not initial ) and (  lv_bp_number not in lt_filter_sel_opt ).
+
+              cp_include_record = abap_false.
+              exit.
+
+            endif.
+
+          when others.
+
+            lt_filter_sel_opt = <ls_set_filters>-select_options.
+
+            if ( lt_filter_sel_opt is not initial ) and (  <fs_value> not in lt_filter_sel_opt ).
+
+              cp_include_record = abap_false.
+              exit.
+
+            endif.
+
+        endcase.
+
+
+
 
       endif. " if ( sy-subrc eq 0 ) and ( <fs_value> is not initial )
 

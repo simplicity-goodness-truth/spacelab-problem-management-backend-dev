@@ -43,6 +43,18 @@ interface zif_slpm_user
       importing
         ip_product_id        type comt_product_id
       returning
+        value(rb_authorized) type bool,
+
+    is_auth_to_read_problems
+      returning
+        value(rb_authorized) type bool,
+
+    is_auth_to_create_problems
+      returning
+        value(rb_authorized) type bool,
+
+    is_auth_to_update_problems
+      returning
         value(rb_authorized) type bool.
 
 

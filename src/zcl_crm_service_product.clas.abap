@@ -14,11 +14,13 @@ class zcl_crm_service_product definition
   private section.
     data: mt_response_profile_table type crmt_escal_recno_tab,
           mv_res_profile            type srv_escal,
-          mt_priorities             type zcrm_order_tt_priorities.
+          mt_priorities             type zcrm_order_tt_priorities,
+          mv_avail_profile          type srv_serwi.
 
     methods: get_response_profile
       returning
         value(rp_res_profile) type srv_escal,
+
       set_response_profile_table,
       set_response_profile,
       set_priorities,
@@ -79,6 +81,7 @@ class zcl_crm_service_product implementation.
       loop at lt_crmm_pr_srvent assigning field-symbol(<ls_crmm_pr_srvent>).
 
         mv_res_profile = <ls_crmm_pr_srvent>-data-srv_escal.
+        mv_avail_profile = <ls_crmm_pr_srvent>-data-srv_serwi.
 
       endloop.
 
@@ -163,6 +166,17 @@ class zcl_crm_service_product implementation.
     endif.
 
     move-corresponding mt_priorities to rt_priorities.
+
+  endmethod.
+
+  method zif_crm_service_product~get_availability_profile_name.
+
+
+    if mv_res_profile is initial.
+      me->set_response_profile(  ).
+    endif.
+
+    rp_profile_name = mv_avail_profile.
 
   endmethod.
 

@@ -3,27 +3,28 @@ class zcl_slpm_data_manager_proxy definition
   final
   create public .
   public section.
+
     interfaces zif_slpm_data_manager.
+
     methods constructor
       raising zcx_slpm_data_manager_exc
               zcx_slpm_configuration_exc
-              zcx_system_user_exc.
+              zcx_system_user_exc
+              zcx_crm_order_api_exc.
+
   protected section.
   private section.
-    data: mo_slpm_data_provider         type ref to zif_slpm_data_manager,
-          mv_user_authorized_for_read   type abap_bool,
-          mv_user_authorized_for_create type abap_bool,
-          mv_user_authorized_for_update type abap_bool,
-          mo_active_configuration       type ref to zif_slpm_configuration,
-          mo_system_user                type ref to zif_system_user,
-          mo_log                        type ref to zcl_logger_to_app_log,
-          mv_app_log_object             type balobj_d,
-          mv_app_log_subobject          type balsubobj.
+    data:
+      mo_slpm_data_provider   type ref to zif_slpm_data_manager,
+      mo_active_configuration type ref to zif_slpm_configuration,
+      mo_system_user          type ref to zif_system_user,
+      mo_slpm_user            type ref to zif_slpm_user,
+      mo_log                  type ref to zcl_logger_to_app_log,
+      mv_app_log_object       type balobj_d,
+      mv_app_log_subobject    type balsubobj.
 
     methods:
 
-      is_user_authorized,
-      is_user_authorized_to_read,
 
       notify_on_problem_change
         importing
@@ -46,23 +47,52 @@ class zcl_slpm_data_manager_proxy definition
 
       store_irt_sla
         importing
-          ip_guid     type crmt_object_guid
-          ip_irt_perc type int4
+          ip_guid        type crmt_object_guid
+          ip_irt_perc    type int4
+          ip_statusin    type char5
+          ip_statusout   type char5
+          ip_priorityin  type crmt_priority
+          ip_priorityout type crmt_priority
+        raising
+          zcx_slpm_configuration_exc
+          zcx_crm_order_api_exc
+          zcx_system_user_exc,
+
+      store_mpt_sla
+        importing
+          ip_guid        type crmt_object_guid
+          ip_mpt_perc    type int4
+          ip_statusin    type char5
+          ip_statusout   type char5
+          ip_priorityin  type crmt_priority
+          ip_priorityout type crmt_priority
+        raising
+          zcx_slpm_configuration_exc
+          zcx_crm_order_api_exc
+          zcx_system_user_exc,
+
+      recalc_irt_sla
+        importing
+          ip_guid               type crmt_object_guid
+          ip_avail_profile_name type srv_serwi
+          ip_irt_perc           type int4 optional
+          ip_statusin           type char5
+          ip_statusout          type char5
+          ip_priorityin         type crmt_priority
+          ip_priorityout        type crmt_priority
         raising
           zcx_slpm_configuration_exc
           zcx_crm_order_api_exc,
 
-      recalc_irt_sla
+      adjust_scapptseg_irt
         importing
-          ip_guid type crmt_object_guid
-        raising
-          zcx_slpm_configuration_exc
-          zcx_crm_order_api_exc.
+          ip_guid type crmt_object_guid.
+
+
 
 endclass.
 
 class zcl_slpm_data_manager_proxy implementation.
-
 
   method set_app_logger.
 
@@ -79,11 +109,11 @@ class zcl_slpm_data_manager_proxy implementation.
 
   method constructor.
 
-    me->mo_system_user = new zcl_system_user( sy-uname ).
+    mo_slpm_user = new zcl_slpm_user( sy-uname ).
 
-    me->is_user_authorized( ).
+    mo_system_user ?= mo_slpm_user.
 
-    if mv_user_authorized_for_read eq abap_true.
+    if mo_slpm_user->is_auth_to_read_problems(  ) eq abap_true.
 
       mo_active_configuration = new zcl_slpm_configuration(  ).
 
@@ -107,19 +137,6 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
-  method is_user_authorized.
-
-    me->is_user_authorized_to_read( ).
-
-  endmethod.
-
-
-  method is_user_authorized_to_read.
-
-    mv_user_authorized_for_read = abap_true.
-
-  endmethod.
-
   method zif_slpm_data_manager~create_attachment.
 
     if mo_slpm_data_provider is bound.
@@ -134,8 +151,6 @@ class zcl_slpm_data_manager_proxy implementation.
     endif.
 
   endmethod.
-
-
 
 
   method notify_on_problem_change.
@@ -162,6 +177,18 @@ class zcl_slpm_data_manager_proxy implementation.
           lv_product_id                type comt_product_id.
 
 
+    " User has no authorizations to create problems
+
+    if mo_slpm_user->is_auth_to_create_problems(  ) eq abap_false.
+
+      raise exception type zcx_slpm_data_manager_exc
+        exporting
+          textid         = zcx_slpm_data_manager_exc=>not_authorized_for_create
+          ip_system_user = sy-uname.
+
+    endif.
+
+
     if mo_slpm_data_provider is bound.
 
       " Check authorizations of a user to create a problem against a company
@@ -179,7 +206,6 @@ class zcl_slpm_data_manager_proxy implementation.
             textid         = zcx_slpm_data_manager_exc=>no_auth_for_creat_for_company
             ip_system_user = sy-uname
             ip_company_bp  = is_problem-companybusinesspartner.
-
 
       endif.
 
@@ -232,6 +258,18 @@ class zcl_slpm_data_manager_proxy implementation.
 
     data: ls_problem_old_state type zcrm_order_ts_sl_problem.
 
+    " User has no authorizations to update problems
+
+    if mo_slpm_user->is_auth_to_update_problems(  ) eq abap_false.
+
+      raise exception type zcx_slpm_data_manager_exc
+        exporting
+          textid         = zcx_slpm_data_manager_exc=>not_authorized_for_update
+          ip_system_user = sy-uname.
+
+    endif.
+
+
     if mo_slpm_data_provider is bound.
 
       try.
@@ -244,8 +282,6 @@ class zcl_slpm_data_manager_proxy implementation.
             exporting
                 ip_guid = ip_guid
                 is_problem = is_problem ).
-
-
 
           me->post_update_external_actions(
                exporting
@@ -453,7 +489,13 @@ class zcl_slpm_data_manager_proxy implementation.
          lv_old_irt_timezone           type timezone,
          lv_new_irt_timestamp          type timestamp,
          lv_new_irt_timezone           type timezone,
-         lv_appt_guid                  type sc_aptguid.
+         lv_appt_guid                  type sc_aptguid,
+         lo_serv_profile_date_calc     type ref to zif_serv_profile_date_calc,
+         lv_avail_profile_name         type char258,
+         lv_time                       type sy-uzeit,
+         lv_date                       type sy-datum,
+         lv_system_timezone            type timezone,
+         ls_zslpm_irt_hist             type zslpm_irt_hist.
 
     " Taking a timestamp when we switched back from 'Information Requested
 
@@ -480,23 +522,52 @@ class zcl_slpm_data_manager_proxy implementation.
 
       " Calculating new value for IRT and storing it
 
-      call function 'TIMESTAMP_DURATION_ADD'
+      lv_avail_profile_name = ip_avail_profile_name.
+
+      lo_serv_profile_date_calc = new zcl_serv_profile_date_calc( lv_avail_profile_name  ).
+
+      zcl_assistant_utilities=>get_date_time_from_timestamp(
         exporting
-          timestamp_in    = lv_old_irt_timestamp
-          timezone        = lv_old_irt_timezone
-          duration        = lv_difference_in_seconds
-          unit            = 'S'
+            ip_timestamp = lv_old_irt_timestamp
+            importing
+            ep_date = lv_date
+            ep_time = lv_time ).
+
+      lo_serv_profile_date_calc->add_seconds_to_date(
+        exporting
+            ip_added_seconds_total = lv_difference_in_seconds
+            ip_date_from = lv_date
+            ip_time_from = lv_time
         importing
-          timestamp_out   = lv_new_irt_timestamp
-        exceptions
-          timestamp_error = 1
-          others          = 2.
+            ep_sla_date = lv_date
+            ep_sla_time = lv_time ).
+
+      lv_system_timezone =  zcl_assistant_utilities=>get_system_timezone(  ).
+
+      convert date lv_date time lv_time into time stamp lv_new_irt_timestamp time zone lv_system_timezone.
 
       update scapptseg set
           tst_from =  lv_new_irt_timestamp
           tst_to = lv_new_irt_timestamp
       where
           appt_guid = lv_appt_guid.
+
+      " Storing for further internal usage
+
+      ls_zslpm_irt_hist-irttimestamp = lv_new_irt_timestamp.
+      ls_zslpm_irt_hist-irttimezone = lv_system_timezone.
+      ls_zslpm_irt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
+      ls_zslpm_irt_hist-apptguid = lv_appt_guid.
+      ls_zslpm_irt_hist-problemguid = ip_guid.
+      get time stamp field ls_zslpm_irt_hist-update_timestamp.
+      ls_zslpm_irt_hist-irtperc = ip_irt_perc.
+      ls_zslpm_irt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
+      ls_zslpm_irt_hist-statusin = ip_statusin.
+      ls_zslpm_irt_hist-statusout = ip_statusout.
+      ls_zslpm_irt_hist-priorityin = ip_priorityin.
+      ls_zslpm_irt_hist-priorityout = ip_priorityout.
+
+      insert zslpm_irt_hist from ls_zslpm_irt_hist.
 
     endif.
 
@@ -512,7 +583,7 @@ class zcl_slpm_data_manager_proxy implementation.
       ls_srv_rfirst_appointment type crmt_appointment_wrk,
       ls_zslpm_irt_hist         type zslpm_irt_hist.
 
-    lo_slmp_problem_api       = new zcl_slpm_problem_api(  ).
+    lo_slmp_problem_api       = new zcl_slpm_problem_api( mo_active_configuration ).
 
     lt_appointments = lo_slmp_problem_api->zif_custom_crm_order_read~get_all_appointments_by_guid( ip_guid ).
 
@@ -538,6 +609,10 @@ class zcl_slpm_data_manager_proxy implementation.
       get time stamp field ls_zslpm_irt_hist-update_timestamp.
       ls_zslpm_irt_hist-irtperc = ip_irt_perc.
       ls_zslpm_irt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
+      ls_zslpm_irt_hist-statusin = ip_statusin.
+      ls_zslpm_irt_hist-statusout = ip_statusout.
+      ls_zslpm_irt_hist-priorityin = ip_priorityin.
+      ls_zslpm_irt_hist-priorityout = ip_priorityout.
 
       insert zslpm_irt_hist from ls_zslpm_irt_hist.
 
@@ -545,47 +620,274 @@ class zcl_slpm_data_manager_proxy implementation.
 
   endmethod.
 
-  method post_update_external_actions.
 
-    data: lv_method_name     type string,
-          lv_log_record_text type string,
-          ptab               type abap_parmbind_tab.
+  method store_mpt_sla.
 
-    " When status is changed from 'Information Requested' to 'In approval'
-    " we need to store IRT SLA timestamp and recalculate a new one
 
-    if ( mo_active_configuration->get_parameter_value( 'PAUSE_IRT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
+    data:
+      lo_slmp_problem_api       type ref to zcl_slpm_problem_api,
+      lt_appointments           type crmt_appointment_wrkt,
+      ls_srv_rready_appointment type crmt_appointment_wrk,
+      ls_zslpm_mpt_hist         type zslpm_mpt_hist.
 
-      if ( is_problem_old_state-status = 'E0016' and is_problem_new_state-status = 'E0017' ).
+    lo_slmp_problem_api       = new zcl_slpm_problem_api( mo_active_configuration ).
 
-        lv_method_name = |STORE_IRT_SLA|.
+    lt_appointments = lo_slmp_problem_api->zif_custom_crm_order_read~get_all_appointments_by_guid( ip_guid ).
 
-        ptab = value #(
-               ( name = 'IP_GUID' value = ref #( is_problem_new_state-guid ) kind = cl_abap_objectdescr=>exporting )
-               ( name = 'IP_IRT_PERC' value = ref #( is_problem_new_state-irt_perc ) kind = cl_abap_objectdescr=>exporting )
-           ).
+    try.
+
+        ls_srv_rready_appointment = lt_appointments[ appt_type = 'SRV_RREADY' ].
+
+      catch cx_sy_itab_line_not_found.
+
+    endtry.
+
+    " Storing old IRT SLA
+
+    select single tst_from zone_from into ( ls_zslpm_mpt_hist-mpttimestamp, ls_zslpm_mpt_hist-mpttimezone )
+     from scapptseg
+     where appt_guid = ls_srv_rready_appointment-appt_guid.
+
+    if sy-subrc eq 0.
+
+      ls_zslpm_mpt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
+      ls_zslpm_mpt_hist-apptguid = ls_srv_rready_appointment-appt_guid.
+      ls_zslpm_mpt_hist-problemguid = ip_guid.
+      get time stamp field ls_zslpm_mpt_hist-update_timestamp.
+      ls_zslpm_mpt_hist-mptperc = ip_mpt_perc.
+      ls_zslpm_mpt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
+      ls_zslpm_mpt_hist-statusin = ip_statusin.
+      ls_zslpm_mpt_hist-statusout = ip_statusout.
+      ls_zslpm_mpt_hist-priorityin = ip_priorityin.
+      ls_zslpm_mpt_hist-priorityout = ip_priorityout.
+
+      insert zslpm_mpt_hist from ls_zslpm_mpt_hist.
+
+    endif.
+
+  endmethod.
+
+
+  method adjust_scapptseg_irt.
+
+    data:
+      lv_irt_update_timestamp    type timestamp,
+      lv_irt_update_timezone     type timezone,
+      lv_stored_irt_timestamp    type timestamp,
+      lv_stored_irt_timezone     type timezone,
+      lv_appt_guid               type sc_aptguid,
+      lv_scapptseg_irt_timestamp type timestamp,
+      lv_scapptseg_irt_timezone  type timezone.
+
+    " Taking last stored IRT SLA
+
+    select update_timestamp update_timezone irttimestamp irttimezone apptguid
+      from zslpm_irt_hist
+      into (lv_irt_update_timestamp, lv_irt_update_timezone, lv_stored_irt_timestamp, lv_stored_irt_timezone, lv_appt_guid)
+      up to 1 rows
+      where problemguid = ip_guid order by update_timestamp descending.
+
+      if sy-subrc eq 0.
+
+        select single tst_from zone_from into ( lv_scapptseg_irt_timestamp, lv_scapptseg_irt_timezone )
+            from scapptseg
+            where appt_guid = lv_appt_guid.
+
+        if lv_stored_irt_timestamp > lv_scapptseg_irt_timestamp.
+
+          update scapptseg set
+              tst_from =  lv_stored_irt_timestamp
+              tst_to = lv_stored_irt_timestamp
+          where
+              appt_guid = lv_appt_guid.
+
+        endif.
 
       endif.
 
-      if ( is_problem_old_state-status = 'E0017' and is_problem_new_state-status = 'E0016' ).
+    endselect.
 
-        lv_method_name = |RECALC_IRT_SLA|.
+  endmethod.
 
-        ptab = value #(
-               ( name = 'IP_GUID' value = ref #( is_problem_new_state-guid ) kind = cl_abap_objectdescr=>exporting )
-           ).
+  method post_update_external_actions.
+
+    types: begin of ty_methods_list,
+             method_name type string,
+             parameters  type abap_parmbind_tab,
+           end of ty_methods_list.
+
+    data: lv_method_name     type string,
+          lv_log_record_text type string,
+          lt_method_params   type abap_parmbind_tab,
+          lt_common_params   type abap_parmbind_tab,
+          lt_specific_params type abap_parmbind_tab,
+          lo_slpm_product    type ref to zif_crm_service_product,
+          lv_avail_profile   type srv_serwi,
+          lt_methods_list    type table of  ty_methods_list,
+          ls_method          type  ty_methods_list.
+
+
+    lt_common_params = value #(
+                 ( name = 'IP_GUID' value = ref #( is_problem_new_state-guid ) kind = cl_abap_objectdescr=>exporting )
+                 ( name = 'IP_STATUSIN' value = ref #( is_problem_old_state-status ) kind = cl_abap_objectdescr=>exporting )
+                 ( name = 'IP_STATUSOUT' value = ref #( is_problem_new_state-status ) kind = cl_abap_objectdescr=>exporting )
+                 ( name = 'IP_PRIORITYIN' value = ref #( is_problem_old_state-priority ) kind = cl_abap_objectdescr=>exporting )
+                 ( name = 'IP_PRIORITYOUT' value = ref #( is_problem_new_state-priority ) kind = cl_abap_objectdescr=>exporting )
+             ).
+
+    " Funny thing!!!
+    " In our code we have to update scapptseg table to write shifted SLAs,
+    " because we cannot set appointments through CRM order API (it just doesn't save it :-( )
+    " However later somehow after each switch from 'In process' to 'Customer Action' OR from
+    " 'On approval' to 'Information requested' all changed records in scapptseg table
+    " ARE REVERTED BACK again to initial state!!! Don't know how and why it happens somewhere
+    " deep in CRM ITSM...
+    "
+    " Finally after each save we have to compare recent scapptseg table SLA value and
+    " those, which we stored in our custom tables. If scapptseg records were reverted,
+    " then we have to re-write it once again....
+
+    if  is_problem_old_state-status ne is_problem_new_state-status.
+      me->adjust_scapptseg_irt( is_problem_new_state-guid ).
+    endif.
+
+
+    " Storing SLA if priority has been changed
+
+    if ( is_problem_old_state-priority ne is_problem_new_state-priority ).
+
+      lv_method_name = |STORE_IRT_SLA|.
+
+      ls_method-method_name = lv_method_name.
+
+      clear lt_method_params.
+      lt_method_params = corresponding #( lt_common_params ).
+      lt_specific_params = value #(
+
+            ( name = 'IP_IRT_PERC' value = ref #( is_problem_new_state-irt_perc ) kind = cl_abap_objectdescr=>exporting )
+        ).
+
+      insert lines of lt_specific_params into table lt_method_params.
+
+      ls_method-parameters = lt_method_params.
+
+      append ls_method to lt_methods_list.
+
+    endif.
+
+    " Storing MPT SLA when switch to 'Customer Action' and 'Solution Proposed' are done
+
+    if ( is_problem_old_state-status = 'E0002' and is_problem_new_state-status = 'E0003' ) or
+        ( is_problem_old_state-status = 'E0002' and is_problem_new_state-status = 'E0005' ).
+
+      lv_method_name = |STORE_MPT_SLA|.
+
+      ls_method-method_name = lv_method_name.
+
+      clear lt_method_params.
+      lt_method_params = corresponding #( lt_common_params ).
+
+      lt_specific_params = value #(
+         ( name = 'IP_MPT_PERC' value = ref #( is_problem_new_state-mpt_perc ) kind = cl_abap_objectdescr=>exporting )
+        ).
+
+      insert lines of lt_specific_params into table lt_method_params.
+
+      ls_method-parameters = lt_method_params.
+
+      append ls_method to lt_methods_list.
+
+    endif.
+
+    " When status is changed from 'Information Requested' to 'In approval'
+    " we need to store IRT and MPT SLA timestamps
+
+    if ( is_problem_old_state-status = 'E0016' and is_problem_new_state-status = 'E0017' ).
+
+      if ( mo_active_configuration->get_parameter_value( 'SHIFT_IRT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
+
+        " Storing of IRT SLA happens only if IRT SLA is not overdue
+        if ( is_problem_new_state-irt_icon_bsp eq 'NOTDUE').
+
+          lv_method_name = |STORE_IRT_SLA|.
+          ls_method-method_name = lv_method_name.
+
+          clear lt_method_params.
+          lt_method_params = corresponding #( lt_common_params ).
+
+          lt_specific_params = value #(
+                     ( name = 'IP_IRT_PERC' value = ref #( is_problem_new_state-irt_perc ) kind = cl_abap_objectdescr=>exporting )
+                 ).
+
+          insert lines of lt_specific_params into table lt_method_params.
+
+          ls_method-parameters = lt_method_params.
+          append ls_method to lt_methods_list.
+
+        endif.
+
+        lv_method_name = |STORE_MPT_SLA|.
+
+        ls_method-method_name = lv_method_name.
+
+        clear lt_method_params.
+        lt_method_params = corresponding #( lt_common_params ).
+
+        lt_specific_params = value #(
+             ( name = 'IP_MPT_PERC' value = ref #( is_problem_new_state-mpt_perc ) kind = cl_abap_objectdescr=>exporting )
+         ).
+
+        insert lines of lt_specific_params into table lt_method_params.
+
+        ls_method-parameters = lt_method_params.
+        append ls_method to lt_methods_list.
 
       endif.
 
     endif.
 
-    if lv_method_name is not initial.
+    if ( is_problem_old_state-status = 'E0017' and is_problem_new_state-status = 'E0016' ).
+
+      " Recalculation will be done only if IRT is not overdue
+
+      if ( mo_active_configuration->get_parameter_value( 'SHIFT_IRT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X') and
+        ( is_problem_new_state-irt_icon_bsp eq 'NOTDUE').
+
+        lv_method_name = |RECALC_IRT_SLA|.
+
+        ls_method-method_name = lv_method_name.
+
+        " Getting a name of an availability profile
+
+        lo_slpm_product = new zcl_crm_service_product( is_problem_new_state-productguid ).
+
+        lv_avail_profile = lo_slpm_product->get_availability_profile_name(  ).
+
+        clear lt_method_params.
+        lt_method_params = corresponding #( lt_common_params ).
+
+        lt_specific_params = value #(
+             ( name = 'IP_AVAIL_PROFILE_NAME' value = ref #( lv_avail_profile ) kind = cl_abap_objectdescr=>exporting )
+             ( name = 'IP_IRT_PERC' value = ref #( is_problem_new_state-irt_perc ) kind = cl_abap_objectdescr=>exporting )
+           ).
+
+        insert lines of lt_specific_params into table lt_method_params.
+
+        ls_method-parameters = lt_method_params.
+
+        append ls_method to lt_methods_list.
+
+      endif.
+
+    endif.
+
+    loop at lt_methods_list assigning field-symbol(<ls_method>).
 
       try.
 
-          call method me->(lv_method_name)
+          call method me->(<ls_method>-method_name)
             parameter-table
-            ptab.
+            <ls_method>-parameters.
 
         catch cx_sy_dyn_call_error into data(lcx_process_exception).
 
@@ -594,8 +896,41 @@ class zcl_slpm_data_manager_proxy implementation.
 
       endtry.
 
+    endloop.
+
+  endmethod.
+
+  method zif_slpm_data_manager~get_all_statuses.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_statuses = mo_slpm_data_provider->get_all_statuses(  ).
+
     endif.
 
   endmethod.
+
+
+
+  method zif_slpm_data_manager~get_problem_sla_irt_history.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_sla_irt_history = mo_slpm_data_provider->get_problem_sla_irt_history( ip_guid ).
+
+    endif.
+
+  endmethod.
+
+  method zif_slpm_data_manager~get_problem_sla_mpt_history.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_sla_mpt_history = mo_slpm_data_provider->get_problem_sla_mpt_history( ip_guid ).
+
+    endif.
+
+  endmethod.
+
 
 endclass.
