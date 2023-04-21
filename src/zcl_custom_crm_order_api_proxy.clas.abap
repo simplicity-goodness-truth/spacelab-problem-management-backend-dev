@@ -93,15 +93,35 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   method zif_custom_crm_order_create~create_text.
 
-    me->set_mo_custom_crm_order_create( ).
+    " Potentially a user could have only UPDATE authorizations without CREATE, but
+    " during an update he/she could require to create text. In this case an exception would be
+    " raised as there are no CREATE authorizations. That's why we will check UPDATE authorizations
+    " first and then CREATE authorizations check will follow, if there are no UPDATE rights
 
-    if ( mo_custom_crm_order_create is bound ).
+    me->set_mo_custom_crm_order_update(  ).
 
-      mo_custom_crm_order_create->create_text(
+    if  ( mo_custom_crm_order_update is bound ).
+
+      mo_custom_crm_order_update->create_text(
         exporting
             ip_guid = ip_guid
             ip_tdid = ip_tdid
             ip_text = ip_text ).
+
+
+    else.
+
+      me->set_mo_custom_crm_order_create( ).
+
+      if ( mo_custom_crm_order_create is bound ).
+
+        mo_custom_crm_order_create->create_text(
+          exporting
+              ip_guid = ip_guid
+              ip_tdid = ip_tdid
+              ip_text = ip_text ).
+
+      endif.
 
     endif.
 
@@ -479,6 +499,23 @@ class zcl_custom_crm_order_api_proxy implementation.
 
     endif.
 
+
+  endmethod.
+
+  method zif_custom_crm_order_update~create_text.
+
+
+    me->set_mo_custom_crm_order_update( ).
+
+    if ( mo_custom_crm_order_update is bound ).
+
+      mo_custom_crm_order_update->create_text(
+        exporting
+            ip_guid = ip_guid
+            ip_tdid = ip_tdid
+            ip_text = ip_text ).
+
+    endif.
 
   endmethod.
 

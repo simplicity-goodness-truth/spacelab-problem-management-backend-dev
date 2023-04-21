@@ -36,11 +36,11 @@ class zcl_slpm_user definition
           zcx_slpm_configuration_exc.
 
 
-ENDCLASS.
+endclass.
 
 
 
-CLASS ZCL_SLPM_USER IMPLEMENTATION.
+class zcl_slpm_user implementation.
 
 
   method get_slpm_products_of_cust_user.
@@ -312,4 +312,30 @@ CLASS ZCL_SLPM_USER IMPLEMENTATION.
     endif.
 
   endmethod.
-ENDCLASS.
+  method zif_slpm_user~is_auth_to_update_product.
+
+    authority-check object 'ZPRUPPROD'
+      id 'ZPROD_ID' field ip_product_id.
+
+    if sy-subrc = 0.
+
+      rb_authorized = abap_true.
+
+    endif.
+
+  endmethod.
+
+  method zif_slpm_user~is_auth_to_update_company.
+
+    authority-check object 'ZPRUPCOMP'
+      id 'BU_PARTNER' field ip_company_bp.
+
+    if sy-subrc = 0.
+
+      rb_authorized = abap_true.
+
+    endif.
+
+  endmethod.
+
+endclass.

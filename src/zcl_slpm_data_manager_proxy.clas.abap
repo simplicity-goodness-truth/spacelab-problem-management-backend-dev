@@ -193,9 +193,9 @@ class zcl_slpm_data_manager_proxy implementation.
 
       " Check authorizations of a user to create a problem against a company
 
-      lo_slpm_user = new zcl_slpm_user( sy-uname ).
+      "lo_slpm_user = new zcl_slpm_user( sy-uname ).
 
-      if ( lo_slpm_user->is_auth_to_crea_company( is_problem-companybusinesspartner ) eq abap_false ).
+      if ( mo_slpm_user->is_auth_to_crea_company( is_problem-companybusinesspartner ) eq abap_false ).
 
         message e004(zslpm_data_manager) with sy-uname is_problem-companybusinesspartner into lv_log_record_text.
 
@@ -213,7 +213,7 @@ class zcl_slpm_data_manager_proxy implementation.
 
       lv_product_id = is_problem-productname.
 
-      if ( lo_slpm_user->is_auth_to_crea_product( lv_product_id ) eq abap_false ).
+      if ( mo_slpm_user->is_auth_to_crea_product( lv_product_id ) eq abap_false ).
 
         message e006(zslpm_data_manager) with sy-uname lv_product_id into lv_log_record_text.
 
@@ -252,11 +252,11 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
-
-
   method zif_slpm_data_manager~update_problem.
 
-    data: ls_problem_old_state type zcrm_order_ts_sl_problem.
+    data: ls_problem_old_state type zcrm_order_ts_sl_problem,
+          lv_log_record_text   type string,
+          lv_product_id        type comt_product_id.
 
     " User has no authorizations to update problems
 
@@ -272,11 +272,47 @@ class zcl_slpm_data_manager_proxy implementation.
 
     if mo_slpm_data_provider is bound.
 
+
       try.
 
           ls_problem_old_state = mo_slpm_data_provider->get_problem(
               exporting
                 ip_guid = ip_guid ).
+
+          " Check authorizations of a user to update a problem against a company
+
+          if ( mo_slpm_user->is_auth_to_update_company( ls_problem_old_state-companybusinesspartner ) eq abap_false ).
+
+            message e009(zslpm_data_manager) with sy-uname ls_problem_old_state-companybusinesspartner into lv_log_record_text.
+
+            mo_log->zif_logger~err( lv_log_record_text ).
+
+            raise exception type zcx_slpm_data_manager_exc
+              exporting
+                textid         = zcx_slpm_data_manager_exc=>no_auth_for_update_for_company
+                ip_system_user = sy-uname
+                ip_company_bp  = ls_problem_old_state-companybusinesspartner.
+
+          endif.
+
+          " Check authorizations of a user to update a problem against a product
+
+          lv_product_id = ls_problem_old_state-productname.
+
+          if ( mo_slpm_user->is_auth_to_update_product( lv_product_id ) eq abap_false ).
+
+            message e010(zslpm_data_manager) with sy-uname lv_product_id into lv_log_record_text.
+
+            mo_log->zif_logger~err( lv_log_record_text ).
+
+            raise exception type zcx_slpm_data_manager_exc
+              exporting
+                textid         = zcx_slpm_data_manager_exc=>no_auth_for_update_for_prod
+                ip_system_user = sy-uname
+                ip_product_id  = lv_product_id.
+
+          endif.
+
 
           rs_result = mo_slpm_data_provider->update_problem(
             exporting

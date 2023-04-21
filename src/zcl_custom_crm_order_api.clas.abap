@@ -2384,4 +2384,13 @@ class zcl_custom_crm_order_api implementation.
 
   endmethod.
 
+  method zif_custom_crm_order_update~create_text.
+
+    me->zif_custom_crm_order_create~create_text( exporting
+        ip_guid = ip_guid
+        ip_tdid = ip_tdid
+        ip_text = ip_text ).
+
+  endmethod.
+
 endclass.
