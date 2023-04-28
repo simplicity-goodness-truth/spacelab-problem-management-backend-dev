@@ -546,45 +546,62 @@ class zcl_slpm_dpc_ext implementation.
           ls_entity             like line of et_entityset,
           lo_slpm_product       type ref to zif_crm_service_product,
           lo_slpm_user          type ref to zif_slpm_user,
-          lt_filter_customer_bp type /iwbep/t_cod_select_options.
+          lt_filter_customer_bp type /iwbep/t_cod_select_options,
+          lo_bp_master_data     type ref to zif_bp_master_data,
+          lv_bp_num             type bu_partner.
 
     " Get filter
 
     lt_filter_customer_bp = get_filter_select_options( io_tech_request_context  = io_tech_request_context
                                            ip_property = 'COMPANYBUSINESSPARTNER' ).
 
-
-    " Get products, available for user
-
     try.
 
-        lo_slpm_user = new zcl_slpm_user( sy-uname ).
+        " Conversion with leading zeroes is required
 
-        lt_products = lo_slpm_user->get_slpm_products_of_user(  ).
+        lv_bp_num = lt_filter_customer_bp[ 1 ]-low.
 
-        loop at lt_products assigning field-symbol(<ls_product>) where companybusinesspartner in lt_filter_customer_bp.
+        lo_bp_master_data  = new zcl_bp_master_data( lv_bp_num ).
 
-          ls_entity-guid = <ls_product>-guid.
-          ls_entity-id = <ls_product>-id.
-          ls_entity-name = <ls_product>-name.
-          ls_entity-companybusinesspartner = <ls_product>-companybusinesspartner.
-          lo_slpm_product = new zcl_crm_service_product( <ls_product>-guid ).
-          ls_entity-prioritiescount = lo_slpm_product->get_resp_profile_prio_count(  ).
+        lt_filter_customer_bp[ 1 ]-low = lo_bp_master_data->get_bp_number( ).
 
-          " We skip all products, which don't have proper priorities assigned
-          " through a response profile
 
-          if ls_entity-prioritiescount > 0.
+        " Get products, available for user
 
-            append  ls_entity to et_entityset.
+        try.
 
-          endif.
+            lo_slpm_user = new zcl_slpm_user( sy-uname ).
 
-          clear ls_entity.
-        endloop.
+            lt_products = lo_slpm_user->get_slpm_products_of_user(  ).
 
-      catch zcx_system_user_exc zcx_slpm_configuration_exc into data(lcx_process_exception).
-        raise_exception( lcx_process_exception->get_text(  ) ).
+            loop at lt_products assigning field-symbol(<ls_product>) where companybusinesspartner in lt_filter_customer_bp.
+
+              ls_entity-guid = <ls_product>-guid.
+              ls_entity-id = <ls_product>-id.
+              ls_entity-name = <ls_product>-name.
+              ls_entity-companybusinesspartner = <ls_product>-companybusinesspartner.
+              lo_slpm_product = new zcl_crm_service_product( <ls_product>-guid ).
+              ls_entity-prioritiescount = lo_slpm_product->get_resp_profile_prio_count(  ).
+
+              " We skip all products, which don't have proper priorities assigned
+              " through a response profile
+
+              if ls_entity-prioritiescount > 0.
+
+                append  ls_entity to et_entityset.
+
+              endif.
+
+              clear ls_entity.
+            endloop.
+
+          catch zcx_system_user_exc zcx_slpm_configuration_exc into data(lcx_process_exception).
+            raise_exception( lcx_process_exception->get_text(  ) ).
+
+        endtry.
+
+
+      catch cx_sy_itab_line_not_found.
 
     endtry.
 

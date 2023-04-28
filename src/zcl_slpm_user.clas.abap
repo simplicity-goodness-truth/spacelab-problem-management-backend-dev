@@ -218,6 +218,8 @@ class zcl_slpm_user implementation.
       rb_authorized = abap_true.
     endif.
 
+
+
   endmethod.
 
 
