@@ -109,11 +109,6 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~create_attachment.
 
-*    data:
-*      lo_slpm_problem_api type ref to zcl_slpm_problem_api.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
-
     mo_slpm_problem_api->zif_custom_crm_order_create~create_attachment(
       exporting
           ip_content = ip_content
@@ -126,12 +121,8 @@ class zcl_slpm_data_manager implementation.
   method zif_slpm_data_manager~create_problem.
 
     data:
-      "lo_slpm_problem_api type ref to zcl_slpm_problem_api,
       lr_problem type ref to data,
       lv_guid    type crmt_object_guid.
-
-
-    "  lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     get reference of is_problem into lr_problem.
 
@@ -146,10 +137,6 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~create_text.
 
-*    data:
-*        lo_slpm_problem_api type ref to zcl_slpm_problem_api.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     mo_slpm_problem_api->zif_custom_crm_order_create~create_text(
         exporting
@@ -161,11 +148,6 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~delete_attachment.
 
-*    data:
-*      lo_slpm_problem_api type ref to zcl_slpm_problem_api.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
-
     mo_slpm_problem_api->zif_custom_crm_order_update~delete_attachment(
      exporting
             ip_guid = ip_guid
@@ -176,21 +158,11 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_all_priorities.
 
-*    data:
-*    lo_slpm_problem_api type ref to zcl_slpm_problem_api.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
-
     rt_priorities = mo_slpm_problem_api->zif_custom_crm_order_read~get_all_priorities_list(  ).
 
   endmethod.
 
   method zif_slpm_data_manager~get_attachment.
-
-*    data:
-*        lo_slpm_problem_api type ref to zcl_slpm_problem_api.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     er_attachment = mo_slpm_problem_api->zif_custom_crm_order_read~get_attachment_by_keys(
         exporting
@@ -202,11 +174,6 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_attachments_list.
 
-*    data:
-*      lo_slpm_problem_api  type ref to zcl_slpm_problem_api.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
-
     mo_slpm_problem_api->zif_custom_crm_order_read~get_attachments_list_by_guid(
     exporting
      ip_guid = ip_guid
@@ -217,11 +184,6 @@ class zcl_slpm_data_manager implementation.
   endmethod.
 
   method zif_slpm_data_manager~get_attachment_content.
-*
-*    data:
-*      lo_slpm_problem_api type ref to zcl_slpm_problem_api.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     mo_slpm_problem_api->zif_custom_crm_order_read~get_attachment_content_by_keys(
       exporting
@@ -235,11 +197,6 @@ class zcl_slpm_data_manager implementation.
   endmethod.
 
   method zif_slpm_data_manager~get_last_text.
-
-*    data:
-*        lo_slpm_problem_api type ref to zcl_slpm_problem_api.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     mo_slpm_problem_api->zif_custom_crm_order_read~get_last_text( exporting ip_guid = ip_guid ).
 
@@ -258,23 +215,12 @@ class zcl_slpm_data_manager implementation.
   method zif_slpm_data_manager~get_problem.
 
     data:
-      "  lo_slpm_problem_api            type ref to zcl_slpm_problem_api,
       ls_sl_problem_standard_package type zcrm_order_ts,
       ls_sl_problem_custom_package   type zcrm_order_ts_sl_problem,
       lo_custom_fields               type ref to data,
       lt_sl_problem_custom_package   type standard table of zcrm_order_ts_sl_problem.
 
     field-symbols <ls_custom_fields> type any table.
-
-*    if io_slpm_problem_api is bound.
-*
-*      lo_slpm_problem_api = io_slpm_problem_api.
-*
-*    else.
-*
-*      lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
-*
-*    endif.
 
     ls_sl_problem_standard_package = mo_slpm_problem_api->zif_custom_crm_order_read~get_standard_fields_by_guid( ip_guid ).
 
@@ -313,8 +259,6 @@ class zcl_slpm_data_manager implementation.
   method zif_slpm_data_manager~get_problems_list.
 
     data:
-
-      "lo_slpm_problem_api type ref to zcl_slpm_problem_api,
       lt_crm_guids       type zcrm_order_tt_guids,
       ls_crm_order_ts    type  zcrm_order_ts,
       ls_result          like line of et_result,
@@ -326,8 +270,6 @@ class zcl_slpm_data_manager implementation.
       lv_product_id      type comt_product_id.
 
     field-symbols: <ls_sorted_table> type any table.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     lt_crm_guids = mo_slpm_problem_api->zif_custom_crm_order_read~get_guids_list(  ).
 
@@ -428,11 +370,6 @@ class zcl_slpm_data_manager implementation.
 
   method zif_slpm_data_manager~get_texts.
 
-*    data:
-*        lo_slpm_problem_api  type ref to zcl_slpm_problem_api.
-*
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
-
     mo_slpm_problem_api->zif_custom_crm_order_read~get_all_texts(
      exporting ip_guid = ip_guid
      importing et_texts = et_texts ).
@@ -452,10 +389,7 @@ class zcl_slpm_data_manager implementation.
   method zif_slpm_data_manager~update_problem.
 
     data:
-      "lo_slpm_problem_api type ref to zcl_slpm_problem_api,
       lr_problem          type ref to data.
-
-*    lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     get reference of is_problem into lr_problem.
 
@@ -467,9 +401,6 @@ class zcl_slpm_data_manager implementation.
 
     rs_result = me->zif_slpm_data_manager~get_problem( ip_guid ).
 
-
-
-
   endmethod.
 
 
@@ -478,12 +409,9 @@ class zcl_slpm_data_manager implementation.
     data:
       lv_possible_status_list type char200,
       lt_possible_status_list type table of j_estat,
-      "   lo_slpm_problem_api     type ref to zcl_slpm_problem_api,
       lt_all_statuses         type zcrm_order_tt_statuses,
       ls_status               type zcrm_order_ts_status.
 
-
-    "   lo_slpm_problem_api = new zcl_slpm_problem_api(  ).
 
     lt_all_statuses = mo_slpm_problem_api->zif_custom_crm_order_read~get_all_statuses_list(  ).
 

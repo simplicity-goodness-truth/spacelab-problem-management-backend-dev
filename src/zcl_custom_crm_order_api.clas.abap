@@ -931,7 +931,6 @@ class zcl_custom_crm_order_api implementation.
 
       update crmd_orderadm_h set posting_date = lv_posting_date where guid = lv_guid.
 
-
     endif. " if er_entity-priority is not initial
 
 

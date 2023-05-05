@@ -213,11 +213,9 @@ class zcl_slpm_user implementation.
 
     authority-check object 'ZPRCRONBEH'
         id 'ALLOWED' field 'X'.
-
     if sy-subrc = 0.
       rb_authorized = abap_true.
     endif.
-
 
 
   endmethod.
