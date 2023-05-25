@@ -14,14 +14,21 @@ class zcl_slpm_data_manager_proxy definition
 
   protected section.
   private section.
+
+    types: begin of ty_text_vulnerabilities_list,
+             expression  type string,
+             replacement type string,
+           end of ty_text_vulnerabilities_list.
+
     data:
-      mo_slpm_data_provider   type ref to zif_slpm_data_manager,
-      mo_active_configuration type ref to zif_slpm_configuration,
-      mo_system_user          type ref to zif_system_user,
-      mo_slpm_user            type ref to zif_slpm_user,
-      mo_log                  type ref to zcl_logger_to_app_log,
-      mv_app_log_object       type balobj_d,
-      mv_app_log_subobject    type balsubobj.
+      mo_slpm_data_provider        type ref to zif_slpm_data_manager,
+      mo_active_configuration      type ref to zif_slpm_configuration,
+      mo_system_user               type ref to zif_system_user,
+      mo_slpm_user                 type ref to zif_slpm_user,
+      mo_log                       type ref to zcl_logger_to_app_log,
+      mv_app_log_object            type balobj_d,
+      mv_app_log_subobject         type balsubobj,
+      mt_text_vulnerabilities_list type table of ty_text_vulnerabilities_list.
 
     methods:
 
@@ -86,7 +93,13 @@ class zcl_slpm_data_manager_proxy definition
 
       adjust_scapptseg_irt
         importing
-          ip_guid type crmt_object_guid.
+          ip_guid type crmt_object_guid,
+
+      fill_vulnerabilities_list,
+
+      clear_text_vulnerabilities
+        changing
+          cp_text type string.
 
 
 
@@ -134,6 +147,8 @@ class zcl_slpm_data_manager_proxy implementation.
 
     me->set_app_logger(  ).
 
+    me->fill_vulnerabilities_list(  ).
+
   endmethod.
 
 
@@ -170,11 +185,12 @@ class zcl_slpm_data_manager_proxy implementation.
   method zif_slpm_data_manager~create_problem.
 
 
-    data: ls_problem_newstate          type zcrm_order_ts_sl_problem,
-          lo_slpm_prob_change_notifier type ref to zif_crm_order_change_notifier,
-          lo_slpm_user                 type ref to zif_slpm_user,
-          lv_log_record_text           type string,
-          lv_product_id                type comt_product_id.
+    data: ls_problem_newstate           type zcrm_order_ts_sl_problem,
+          lo_slpm_prob_change_notifier  type ref to zif_crm_order_change_notifier,
+          lo_slpm_user                  type ref to zif_slpm_user,
+          lv_log_record_text            type string,
+          lv_product_id                 type comt_product_id,
+          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store.
 
 
     " User has no authorizations to create problems
@@ -247,6 +263,12 @@ class zcl_slpm_data_manager_proxy implementation.
 
       endtry.
 
+      " History record creation
+
+      lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( rs_result-guid ).
+
+      lo_slpm_problem_history_store->add_creation_event_record( rs_result ).
+
     endif.
 
   endmethod.
@@ -254,9 +276,10 @@ class zcl_slpm_data_manager_proxy implementation.
 
   method zif_slpm_data_manager~update_problem.
 
-    data: ls_problem_old_state type zcrm_order_ts_sl_problem,
-          lv_log_record_text   type string,
-          lv_product_id        type comt_product_id.
+    data: ls_problem_old_state          type zcrm_order_ts_sl_problem,
+          lv_log_record_text            type string,
+          lv_product_id                 type comt_product_id,
+          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store.
 
     " User has no authorizations to update problems
 
@@ -330,6 +353,12 @@ class zcl_slpm_data_manager_proxy implementation.
                      is_problem_new_state = rs_result
                      is_problem_old_state = ls_problem_old_state ).
 
+          " History record creation
+
+          lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( rs_result-guid ).
+
+          lo_slpm_problem_history_store->add_update_event_record( is_problem ).
+
 
         catch zcx_crm_order_api_exc into data(lcx_process_exception).
 
@@ -347,12 +376,17 @@ class zcl_slpm_data_manager_proxy implementation.
 
     if mo_slpm_data_provider is bound.
 
+      data lv_text type string.
+
+      lv_text = ip_text.
+
+      clear_text_vulnerabilities( changing cp_text = lv_text ).
+
       mo_slpm_data_provider->create_text(
              exporting
                  ip_guid = ip_guid
                  ip_tdid = ip_tdid
-                 ip_text = ip_text ).
-
+                 ip_text = lv_text ).
 
     endif.
 
@@ -968,5 +1002,27 @@ class zcl_slpm_data_manager_proxy implementation.
 
   endmethod.
 
+
+  method clear_text_vulnerabilities.
+
+    loop at mt_text_vulnerabilities_list assigning field-symbol(<ls_text_vulnerability>).
+
+      replace all occurrences of <ls_text_vulnerability>-expression in cp_text
+        with <ls_text_vulnerability>-replacement.
+
+    endloop.
+
+  endmethod.
+
+  method fill_vulnerabilities_list.
+
+    mt_text_vulnerabilities_list = value #(
+          ( expression = '<script' replacement = '-script-open-tag-')
+          ( expression = '</script' replacement = '-script-close-tag-' )
+          ( expression = '<' replacement = '-<-' )
+          ( expression = '>' replacement = '->-' )
+    ).
+
+  endmethod.
 
 endclass.

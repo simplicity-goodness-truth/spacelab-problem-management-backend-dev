@@ -16,8 +16,9 @@ class zcl_slpm_products_storage implementation.
   method zif_slpm_products_storage~get_all_slpm_products.
 
     types: begin of ty_product_and_cust,
-             productid              type comt_product_id,
+             productid               type comt_product_id,
              customerbusinesspartner type bu_partner,
+             showpriorities          type char1,
            end of ty_product_and_cust.
 
 

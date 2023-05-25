@@ -8,6 +8,7 @@ class zcl_slpm_dpc_ext definition
     methods /iwbep/if_mgw_appl_srv_runtime~create_stream redefinition.
     methods /iwbep/if_mgw_appl_srv_runtime~delete_stream redefinition.
   protected section.
+    methods problemhistory02_get_entityset redefinition.
     methods slampthistoryset_get_entityset redefinition.
     methods slairthistoryset_get_entityset redefinition.
     methods systemset_get_entityset redefinition.
@@ -542,13 +543,14 @@ class zcl_slpm_dpc_ext implementation.
 
   method productset_get_entityset.
 
-    data: lt_products           type zslpm_tt_products,
-          ls_entity             like line of et_entityset,
-          lo_slpm_product       type ref to zif_crm_service_product,
-          lo_slpm_user          type ref to zif_slpm_user,
-          lt_filter_customer_bp type /iwbep/t_cod_select_options,
-          lo_bp_master_data     type ref to zif_bp_master_data,
-          lv_bp_num             type bu_partner.
+    data: lt_products            type zslpm_tt_products,
+          ls_entity              like line of et_entityset,
+          lo_crm_service_product type ref to zif_crm_service_product,
+          lo_slpm_user           type ref to zif_slpm_user,
+          lt_filter_customer_bp  type /iwbep/t_cod_select_options,
+          lo_bp_master_data      type ref to zif_bp_master_data,
+          lv_bp_num              type bu_partner,
+          lo_slpm_product        type ref to zif_slpm_product.
 
     " Get filter
 
@@ -580,8 +582,18 @@ class zcl_slpm_dpc_ext implementation.
               ls_entity-id = <ls_product>-id.
               ls_entity-name = <ls_product>-name.
               ls_entity-companybusinesspartner = <ls_product>-companybusinesspartner.
-              lo_slpm_product = new zcl_crm_service_product( <ls_product>-guid ).
-              ls_entity-prioritiescount = lo_slpm_product->get_resp_profile_prio_count(  ).
+
+
+              lo_slpm_product = new zcl_slpm_product( <ls_product>-guid ).
+
+              ls_entity-showpriorities = lo_slpm_product->is_show_priority_set(  ).
+
+              lo_crm_service_product ?= lo_slpm_product.
+
+              "lo_crm_service_product = new zcl_crm_service_product( <ls_product>-guid ).
+
+
+              ls_entity-prioritiescount = lo_crm_service_product->get_resp_profile_prio_count(  ).
 
               " We skip all products, which don't have proper priorities assigned
               " through a response profile
@@ -609,19 +621,24 @@ class zcl_slpm_dpc_ext implementation.
 
   method productset_get_entity.
 
-    data: lv_guid         type comt_product_guid,
-          lo_slpm_product type ref to zif_crm_service_product.
+    data: lv_guid                type comt_product_guid,
+          lo_crm_service_product type ref to zif_crm_service_product,
+          lo_slpm_product        type ref to zif_slpm_product.
 
     loop at it_key_tab assigning field-symbol(<ls_guid>).
       move <ls_guid>-value to lv_guid.
     endloop.
 
-    lo_slpm_product = new zcl_crm_service_product( lv_guid ).
+    lo_slpm_product = new zcl_slpm_product( lv_guid ).
+
+    lo_crm_service_product ?= lo_slpm_product.
 
     er_entity-guid = lv_guid.
-    er_entity-id = lo_slpm_product->zif_crm_product~get_id( ).
-    er_entity-name = lo_slpm_product->zif_crm_product~get_name(  ).
-    er_entity-prioritiescount = lo_slpm_product->get_resp_profile_prio_count(  ).
+    er_entity-id = lo_crm_service_product->zif_crm_product~get_id( ).
+    er_entity-name = lo_crm_service_product->zif_crm_product~get_name(  ).
+    er_entity-prioritiescount = lo_crm_service_product->get_resp_profile_prio_count(  ).
+
+    er_entity-showpriorities =  lo_slpm_product->is_show_priority_set(  ).
 
   endmethod.
 
@@ -996,6 +1013,24 @@ class zcl_slpm_dpc_ext implementation.
 
       endtry.
 
+    endif.
+
+  endmethod.
+
+  method problemhistory02_get_entityset.
+
+    data: lv_guid                       type crmt_object_guid,
+          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store.
+
+    read table it_key_tab into data(ls_key_tab) with key name = 'Guid'.
+
+    lv_guid = ls_key_tab-value.
+
+    if lv_guid is not initial.
+
+      lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( lv_guid ).
+
+      et_entityset = lo_slpm_problem_history_store->get_problem_history_hierarchy(  ).
     endif.
 
   endmethod.

@@ -286,7 +286,7 @@ class zcl_slpm_data_manager implementation.
 
 
 
-          " Filters processing
+        " Filters processing
 
         if it_filters is not initial.
 
@@ -450,8 +450,12 @@ class zcl_slpm_data_manager implementation.
 
   method add_problem_non_db_fields.
 
-    data: lo_slpm_customer type ref to zif_slpm_customer,
-          lo_company       type ref to zif_company.
+    data: lo_slpm_customer   type ref to zif_slpm_customer,
+          lo_company         type ref to zif_company,
+          lv_duration_sec    type integer,
+          lv_system_timezone type timezone,
+          lv_timestamp       type timestamp,
+          lo_slpm_product    type ref to zif_slpm_product.
 
     me->fill_possible_problem_actions(
         changing
@@ -507,8 +511,6 @@ class zcl_slpm_data_manager implementation.
 
     " SLAs on Hold flag
 
-    "if ( cs_problem-irt_icon_bsp ne 'OVERDUE' ) and  ( cs_problem-mpt_icon_bsp ne 'OVERDUE' ).
-
     cs_problem-irtslaonhold = switch char4(  cs_problem-status
                   when 'E0017'    then abap_true
                       else abap_false ).
@@ -519,8 +521,53 @@ class zcl_slpm_data_manager implementation.
                     when 'E0005'    then abap_true
                     else abap_false ).
 
+    "Closed flag
 
-    "endif.
+    cs_problem-closed = switch char4(  cs_problem-status
+                    when 'E0008'    then abap_true
+                    when 'E0010'    then abap_true
+                    else abap_false ).
+
+    " Total processing time
+
+    cs_problem-totalproctimeminutes = 0.
+
+    if ( cs_problem-closed eq abap_true ).
+
+      " For statuses Withdrawn (E0010) and Confirmed (E0008) it is a difference between completion timestamp
+      " and last change timestamp
+
+      lv_duration_sec = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+        exporting
+            ip_timestamp_1 = cs_problem-created_at
+            ip_timestamp_2 = cs_problem-changedat ).
+
+
+    else.
+
+      " For statuses except Withdrawn (E0010) and Confirmed (E0008)  it is a difference between now and creation timestamp
+
+      lv_system_timezone =  zcl_assistant_utilities=>get_system_timezone(  ).
+
+      convert date sy-datum time sy-uzeit into time stamp lv_timestamp time zone lv_system_timezone.
+
+      lv_duration_sec = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+        exporting
+            ip_timestamp_1 = cs_problem-created_at
+            ip_timestamp_2 = lv_timestamp ).
+
+    endif.
+
+    cs_problem-totalproctimeminutes = lv_duration_sec div 60.
+
+
+    " Show Priorities
+
+    lo_slpm_product = new zcl_slpm_product( cs_problem-productguid ).
+
+    cs_problem-showpriorities = lo_slpm_product->is_show_priority_set(  ).
+
+
 
   endmethod.
 
@@ -560,6 +607,7 @@ class zcl_slpm_data_manager implementation.
               when 'E0002'    then abap_true
               when 'E0015'    then abap_true
               when 'E0016'    then abap_true
+              when 'E0005'    then abap_true
                   else abap_false )
         else abap_false ) .
 
@@ -760,6 +808,7 @@ class zcl_slpm_data_manager implementation.
 
     lv_parameter_mask = switch char100( ip_application
               when 'zslpmmyprb'    then 'MYPROBLEMS'
+              when 'zslpmcrprb'    then 'NEWPROBLEM'
              ).
 
     if lv_parameter_mask is not initial.
