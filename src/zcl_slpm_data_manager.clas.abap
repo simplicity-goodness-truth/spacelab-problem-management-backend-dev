@@ -605,6 +605,7 @@ class zcl_slpm_data_manager implementation.
             switch char5( cs_problem-status
               when 'E0001'    then abap_true
               when 'E0002'    then abap_true
+              when 'E0003'    then abap_true
               when 'E0015'    then abap_true
               when 'E0016'    then abap_true
               when 'E0005'    then abap_true
@@ -809,6 +810,7 @@ class zcl_slpm_data_manager implementation.
     lv_parameter_mask = switch char100( ip_application
               when 'zslpmmyprb'    then 'MYPROBLEMS'
               when 'zslpmcrprb'    then 'NEWPROBLEM'
+              when 'zslpmprprb'    then 'PROCESSPROBLEM'
              ).
 
     if lv_parameter_mask is not initial.
@@ -866,7 +868,7 @@ class zcl_slpm_data_manager implementation.
       lt_priorities      type zcrm_order_tt_priorities.
 
     select guid apptguid problemguid irttimestamp irttimezone irtperc update_timestamp update_timezone statusin
-        statusout priorityin priorityout from zslpm_irt_hist into corresponding fields of table lt_sla_irt_history
+        statusout priorityin priorityout username manualchange from zslpm_irt_hist into corresponding fields of table lt_sla_irt_history
         where problemguid = ip_guid.
 
     loop at lt_sla_irt_history assigning field-symbol(<ls_sla_irt_history>).

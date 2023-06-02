@@ -3,14 +3,6 @@ interface zif_slpm_problem_history_store
 
   methods:
 
-    add_creation_event_record
-      importing
-        is_problem type zcrm_order_ts_sl_problem,
-
-    add_update_event_record
-      importing
-        is_problem type zcrm_order_ts_sl_problem,
-
     get_problem_history_headers
       returning
         value(rt_zslpm_pr_his_hdr) type zslpm_tt_pr_his_hdr,

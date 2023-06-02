@@ -5,7 +5,11 @@ class zcl_slpm_problem_history_store definition
 
   public section.
 
-    interfaces zif_slpm_problem_history_store.
+    interfaces:
+
+      zif_slpm_problem_history_store,
+
+      zif_slpm_problem_observer.
 
     methods:
       constructor
@@ -23,6 +27,15 @@ class zcl_slpm_problem_history_store definition
 
     methods:
 
+
+    add_creation_event_record
+      importing
+        is_problem type zcrm_order_ts_sl_problem,
+
+    add_update_event_record
+      importing
+        is_problem type zcrm_order_ts_sl_problem,
+
       add_event_record
         importing
           is_problem type zcrm_order_ts_sl_problem,
@@ -37,58 +50,12 @@ class zcl_slpm_problem_history_store definition
         importing
           is_problem type zcrm_order_ts_sl_problem.
 
-endclass.
+ENDCLASS.
 
 
-class zcl_slpm_problem_history_store implementation.
 
-  method constructor.
+CLASS ZCL_SLPM_PROBLEM_HISTORY_STORE IMPLEMENTATION.
 
-    mv_guid = ip_guid.
-
-  endmethod.
-
-
-  method zif_slpm_problem_history_store~add_creation_event_record.
-
-    mv_event = 'C'.
-
-    me->add_event_record( is_problem ).
-
-  endmethod.
-
-  method zif_slpm_problem_history_store~add_update_event_record.
-
-    mv_event = 'U'.
-
-    me->add_event_record( is_problem ).
-
-  endmethod.
-
-  method set_hist_header_record.
-
-    mv_change_guid = zcl_assistant_utilities=>generate_x16_guid(  ).
-
-    ms_zslpm_pr_his_hdr-guid = mv_guid.
-    ms_zslpm_pr_his_hdr-username = sy-uname.
-    ms_zslpm_pr_his_hdr-change_date = sy-datum.
-    ms_zslpm_pr_his_hdr-change_time = sy-uzeit.
-    ms_zslpm_pr_his_hdr-event = mv_event.
-    ms_zslpm_pr_his_hdr-change_guid = mv_change_guid.
-
-  endmethod.
-
-  method add_hist_header_record_to_db.
-
-    insert  zslpm_pr_his_hdr from ms_zslpm_pr_his_hdr.
-
-  endmethod.
-
-  method set_problem_record.
-
-    ms_problem = is_problem.
-
-  endmethod.
 
   method add_event_record.
 
@@ -102,7 +69,6 @@ class zcl_slpm_problem_history_store implementation.
     me->add_hist_detail_record_to_db(  ).
 
   endmethod.
-
 
 
   method add_hist_detail_record_to_db.
@@ -160,6 +126,60 @@ class zcl_slpm_problem_history_store implementation.
 
   endmethod.
 
+
+  method add_hist_header_record_to_db.
+
+    insert  zslpm_pr_his_hdr from ms_zslpm_pr_his_hdr.
+
+  endmethod.
+
+
+  method constructor.
+
+    mv_guid = ip_guid.
+
+  endmethod.
+
+
+  method set_hist_header_record.
+
+    mv_change_guid = zcl_assistant_utilities=>generate_x16_guid(  ).
+
+    ms_zslpm_pr_his_hdr-guid = mv_guid.
+    ms_zslpm_pr_his_hdr-username = sy-uname.
+    ms_zslpm_pr_his_hdr-change_date = sy-datum.
+    ms_zslpm_pr_his_hdr-change_time = sy-uzeit.
+    ms_zslpm_pr_his_hdr-event = mv_event.
+    ms_zslpm_pr_his_hdr-change_guid = mv_change_guid.
+
+  endmethod.
+
+
+  method set_problem_record.
+
+    ms_problem = is_problem.
+
+  endmethod.
+
+
+  method add_creation_event_record.
+
+    mv_event = 'C'.
+
+    me->add_event_record( is_problem ).
+
+  endmethod.
+
+
+  method add_update_event_record.
+
+    mv_event = 'U'.
+
+    me->add_event_record( is_problem ).
+
+  endmethod.
+
+
   method zif_slpm_problem_history_store~get_problem_history_headers.
 
     select
@@ -176,40 +196,6 @@ class zcl_slpm_problem_history_store implementation.
 
   endmethod.
 
-  method zif_slpm_problem_history_store~get_problem_history_records.
-
-    data: lt_zslpm_pr_his_hdr type zslpm_tt_pr_his_hdr,
-          lt_zslpm_pr_his_rec type zslpm_tt_pr_his_rec.
-
-    select
-       change_guid
-       guid
-       username
-       change_date
-       change_time
-       event
-    into corresponding fields of table lt_zslpm_pr_his_hdr
-       from zslpm_pr_his_hdr
-       where guid = mv_guid.
-
-    loop at lt_zslpm_pr_his_hdr assigning field-symbol(<ls_zslpm_pr_his_hdr>).
-
-      clear lt_zslpm_pr_his_rec.
-
-      select
-        change_guid
-        field
-        value
-     into corresponding fields of table lt_zslpm_pr_his_rec
-        from zslpm_pr_his_rec
-        where change_guid = <ls_zslpm_pr_his_hdr>-change_guid.
-
-      append lines of lt_zslpm_pr_his_rec to rt_zslpm_pr_his_rec.
-
-
-    endloop.
-
-  endmethod.
 
   method zif_slpm_problem_history_store~get_problem_history_hierarchy.
 
@@ -288,4 +274,55 @@ class zcl_slpm_problem_history_store implementation.
 
   endmethod.
 
-endclass.
+
+  method zif_slpm_problem_history_store~get_problem_history_records.
+
+    data: lt_zslpm_pr_his_hdr type zslpm_tt_pr_his_hdr,
+          lt_zslpm_pr_his_rec type zslpm_tt_pr_his_rec.
+
+    select
+       change_guid
+       guid
+       username
+       change_date
+       change_time
+       event
+    into corresponding fields of table lt_zslpm_pr_his_hdr
+       from zslpm_pr_his_hdr
+       where guid = mv_guid.
+
+    loop at lt_zslpm_pr_his_hdr assigning field-symbol(<ls_zslpm_pr_his_hdr>).
+
+      clear lt_zslpm_pr_his_rec.
+
+      select
+        change_guid
+        field
+        value
+     into corresponding fields of table lt_zslpm_pr_his_rec
+        from zslpm_pr_his_rec
+        where change_guid = <ls_zslpm_pr_his_hdr>-change_guid.
+
+      append lines of lt_zslpm_pr_his_rec to rt_zslpm_pr_his_rec.
+
+
+    endloop.
+
+  endmethod.
+
+
+  method zif_slpm_problem_observer~problem_created.
+
+
+    add_creation_event_record( is_problem ).
+
+
+  endmethod.
+
+
+  method zif_slpm_problem_observer~problem_updated.
+
+    add_update_event_record( is_problem ).
+
+  endmethod.
+ENDCLASS.

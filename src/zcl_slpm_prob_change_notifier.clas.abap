@@ -4,7 +4,11 @@ class zcl_slpm_prob_change_notifier definition
   create public .
 
   public section.
-    interfaces zif_crm_order_change_notifier .
+    interfaces:
+      zif_crm_order_change_notifier,
+
+      zif_slpm_problem_observer.
+
     methods constructor
       importing
         io_active_configuration type ref to zif_slpm_configuration
@@ -493,6 +497,18 @@ class zcl_slpm_prob_change_notifier implementation.
 
     endloop.
 
+
+  endmethod.
+
+  method zif_slpm_problem_observer~problem_created.
+
+    me->zif_crm_order_change_notifier~notify(  ).
+
+  endmethod.
+
+  method zif_slpm_problem_observer~problem_updated.
+
+    me->zif_crm_order_change_notifier~notify(  ).
 
   endmethod.
 
