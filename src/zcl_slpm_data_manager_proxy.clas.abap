@@ -29,7 +29,9 @@ class zcl_slpm_data_manager_proxy definition
       mv_app_log_object            type balobj_d,
       mv_app_log_subobject         type balsubobj,
       mt_text_vulnerabilities_list type table of ty_text_vulnerabilities_list,
-      mt_problem_observers         type standard table of ref to zif_slpm_problem_observer.
+      mt_problem_observers         type standard table of ref to zif_slpm_problem_observer,
+      "mo_slpm_cache_controller     type ref to zif_cache
+      mo_slpm_cache_controller     type ref to zif_slpm_problem_cache.
 
     methods:
 
@@ -117,638 +119,69 @@ class zcl_slpm_data_manager_proxy definition
 
       clear_text_vulnerabilities
         changing
-          cp_text type string.
+          cp_text type string,
 
+      invalidate_problem_in_cache
+        importing
+          ip_guid type crmt_object_guid,
+
+      get_problem_from_cache
+        importing
+          ip_guid           type crmt_object_guid
+        returning
+          value(rs_problem) type zcrm_order_ts_sl_problem
+        raising
+          zcx_slpm_configuration_exc,
+
+      add_problem_to_cache
+        importing
+          is_problem type zcrm_order_ts_sl_problem
+        raising
+          zcx_slpm_configuration_exc,
+
+      set_slpm_cache_controller
+        raising
+          zcx_slpm_configuration_exc,
+
+      get_problem_through_cache
+        importing
+          ip_guid          type crmt_object_guid
+        returning
+          value(es_result) type zcrm_order_ts_sl_problem
+        raising
+          zcx_crm_order_api_exc
+          zcx_assistant_utilities_exc
+          zcx_slpm_configuration_exc
+          zcx_system_user_exc,
+
+      decode_problem
+        importing
+          ir_problem        type ref to data
+          ip_table_name     type strukname
+        returning
+          value(rs_problem) type zcrm_order_ts_sl_problem.
 
 
 endclass.
 
+
+
 class zcl_slpm_data_manager_proxy implementation.
 
-  method set_app_logger.
 
-    mv_app_log_object = mo_active_configuration->get_parameter_value( 'APP_LOG_OBJECT' ).
-    mv_app_log_subobject = 'ZDATAMANAGER'.
+  method add_problem_to_cache.
 
-    mo_log = zcl_logger_to_app_log=>get_instance( ).
-    mo_log->set_object_and_subobject(
-          exporting
-            ip_object    =   mv_app_log_object
-            ip_subobject =   mv_app_log_subobject ).
+    " ------Use approach below if a general cache interface ZIF_CACHE is used
 
-  endmethod.
+*    data lr_problem type ref to data.
+*
+*    get reference of is_problem into lr_problem.
+*
+*    mo_slpm_cache_controller->add_record( lr_problem ).
 
-  method constructor.
+    " ------Use approach below if a dedicated problem cache interface ZIF_SLPM_PROBLEM_CACHE is used
 
-    mo_slpm_user = new zcl_slpm_user( sy-uname ).
-
-    mo_system_user ?= mo_slpm_user.
-
-    if mo_slpm_user->is_auth_to_read_problems(  ) eq abap_true.
-
-      mo_active_configuration = new zcl_slpm_configuration(  ).
-
-      mo_slpm_data_provider = new zcl_slpm_data_manager(
-        io_active_configuration = mo_active_configuration
-        io_system_user = me->mo_system_user ).
-
-    else.
-
-      " User has no authorizations to read problems
-
-      raise exception type zcx_slpm_data_manager_exc
-        exporting
-          textid         = zcx_slpm_data_manager_exc=>not_authorized_for_read
-          ip_system_user = sy-uname.
-
-    endif.
-
-    me->set_app_logger(  ).
-
-    me->fill_vulnerabilities_list(  ).
-
-
-
-  endmethod.
-
-
-  method zif_slpm_data_manager~create_attachment.
-
-    if mo_slpm_data_provider is bound.
-
-      mo_slpm_data_provider->create_attachment(
-      exporting
-          ip_content = ip_content
-          ip_file_name = ip_file_name
-          ip_guid = ip_guid
-          ip_mime_type = ip_mime_type ).
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~create_problem.
-
-
-    data: ls_problem_newstate           type zcrm_order_ts_sl_problem,
-          lo_slpm_prob_change_notifier  type ref to zif_crm_order_change_notifier,
-          lo_slpm_user                  type ref to zif_slpm_user,
-          lv_log_record_text            type string,
-          lv_product_id                 type comt_product_id,
-          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store.
-
-
-    " User has no authorizations to create problems
-
-    if mo_slpm_user->is_auth_to_create_problems(  ) eq abap_false.
-
-      raise exception type zcx_slpm_data_manager_exc
-        exporting
-          textid         = zcx_slpm_data_manager_exc=>not_authorized_for_create
-          ip_system_user = sy-uname.
-
-    endif.
-
-
-    if mo_slpm_data_provider is bound.
-
-      " Check authorizations of a user to create a problem against a company
-
-      "lo_slpm_user = new zcl_slpm_user( sy-uname ).
-
-      if ( mo_slpm_user->is_auth_to_crea_company( is_problem-companybusinesspartner ) eq abap_false ).
-
-        message e004(zslpm_data_manager) with sy-uname is_problem-companybusinesspartner into lv_log_record_text.
-
-        mo_log->zif_logger~err( lv_log_record_text ).
-
-        raise exception type zcx_slpm_data_manager_exc
-          exporting
-            textid         = zcx_slpm_data_manager_exc=>no_auth_for_creat_for_company
-            ip_system_user = sy-uname
-            ip_company_bp  = is_problem-companybusinesspartner.
-
-      endif.
-
-      " Check authorizations of a user to create a problem against a product
-
-      lv_product_id = is_problem-productname.
-
-      if ( mo_slpm_user->is_auth_to_crea_product( lv_product_id ) eq abap_false ).
-
-        message e006(zslpm_data_manager) with sy-uname lv_product_id into lv_log_record_text.
-
-        mo_log->zif_logger~err( lv_log_record_text ).
-
-        raise exception type zcx_slpm_data_manager_exc
-          exporting
-            textid         = zcx_slpm_data_manager_exc=>no_auth_for_creat_for_prod
-            ip_system_user = sy-uname
-            ip_product_id  = lv_product_id.
-
-      endif.
-
-      " Notification on a problem change
-
-      try.
-
-          rs_result = mo_slpm_data_provider->create_problem( exporting is_problem = is_problem ).
-
-*          me->notify_on_problem_change(
-*              exporting
-*              is_problem_new_state = rs_result
-*              is_problem_old_state = is_problem ).
-
-        catch  zcx_crm_order_api_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
-
-          raise exception type zcx_slpm_data_manager_exc
-            exporting
-              textid           = zcx_slpm_data_manager_exc=>internal_error
-              ip_error_message = lcx_process_exception->get_text( ).
-
-      endtry.
-
-      " Adding a change notifier observer for created problem
-
-      me->attach_observer( new zcl_slpm_prob_change_notifier(
-           io_active_configuration = mo_active_configuration
-           is_problem_new_state = rs_result
-           is_problem_old_state = is_problem ) ).
-
-      " Adding a history store observer for created problem
-
-      me->attach_observer( new zcl_slpm_problem_history_store( rs_result-guid ) ).
-
-      " Executing notification on create
-
-      notify_observers_on_create( rs_result ).
-
-    endif.
-
-  endmethod.
-
-
-  method zif_slpm_data_manager~update_problem.
-
-    data: ls_problem_old_state          type zcrm_order_ts_sl_problem,
-          lv_log_record_text            type string,
-          lv_product_id                 type comt_product_id,
-          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store.
-
-    " User has no authorizations to update problems
-
-    if mo_slpm_user->is_auth_to_update_problems(  ) eq abap_false.
-
-      raise exception type zcx_slpm_data_manager_exc
-        exporting
-          textid         = zcx_slpm_data_manager_exc=>not_authorized_for_update
-          ip_system_user = sy-uname.
-
-    endif.
-
-
-    if mo_slpm_data_provider is bound.
-
-
-      try.
-
-          ls_problem_old_state = mo_slpm_data_provider->get_problem(
-              exporting
-                ip_guid = ip_guid ).
-
-          " Check authorizations of a user to update a problem against a company
-
-          if ( mo_slpm_user->is_auth_to_update_company( ls_problem_old_state-companybusinesspartner ) eq abap_false ).
-
-            message e009(zslpm_data_manager) with sy-uname ls_problem_old_state-companybusinesspartner into lv_log_record_text.
-
-            mo_log->zif_logger~err( lv_log_record_text ).
-
-            raise exception type zcx_slpm_data_manager_exc
-              exporting
-                textid         = zcx_slpm_data_manager_exc=>no_auth_for_update_for_company
-                ip_system_user = sy-uname
-                ip_company_bp  = ls_problem_old_state-companybusinesspartner.
-
-          endif.
-
-          " Check authorizations of a user to update a problem against a product
-
-          lv_product_id = ls_problem_old_state-productname.
-
-          if ( mo_slpm_user->is_auth_to_update_product( lv_product_id ) eq abap_false ).
-
-            message e010(zslpm_data_manager) with sy-uname lv_product_id into lv_log_record_text.
-
-            mo_log->zif_logger~err( lv_log_record_text ).
-
-            raise exception type zcx_slpm_data_manager_exc
-              exporting
-                textid         = zcx_slpm_data_manager_exc=>no_auth_for_update_for_prod
-                ip_system_user = sy-uname
-                ip_product_id  = lv_product_id.
-
-          endif.
-
-
-          rs_result = mo_slpm_data_provider->update_problem(
-            exporting
-                ip_guid = ip_guid
-                is_problem = is_problem ).
-
-          me->post_update_external_actions(
-               exporting
-               is_problem_new_state = rs_result
-               is_problem_old_state = ls_problem_old_state
-               is_payload = is_problem ).
-
-
-*          me->notify_on_problem_change(
-*                     exporting
-*                     is_problem_new_state = rs_result
-*                     is_problem_old_state = ls_problem_old_state ).
-
-
-          " Adding a change notifier observer for updated problem
-
-          me->attach_observer( new zcl_slpm_prob_change_notifier(
-                     io_active_configuration = mo_active_configuration
-                     is_problem_new_state = rs_result
-                     is_problem_old_state = ls_problem_old_state ) ).
-
-          " Adding an observer for update problem
-
-          me->attach_observer( new zcl_slpm_problem_history_store( rs_result-guid ) ).
-
-          " Executing notification on update
-
-          notify_observers_on_update( is_problem ).
-
-        catch zcx_crm_order_api_exc into data(lcx_process_exception).
-
-          raise exception type zcx_slpm_data_manager_exc
-            exporting
-              textid           = zcx_slpm_data_manager_exc=>internal_error
-              ip_error_message = lcx_process_exception->get_text( ).
-      endtry.
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~create_text.
-
-    if mo_slpm_data_provider is bound.
-
-      data lv_text type string.
-
-      lv_text = ip_text.
-
-      clear_text_vulnerabilities( changing cp_text = lv_text ).
-
-      mo_slpm_data_provider->create_text(
-             exporting
-                 ip_guid = ip_guid
-                 ip_tdid = ip_tdid
-                 ip_text = lv_text ).
-
-    endif.
-
-  endmethod.
-
-
-  method zif_slpm_data_manager~delete_attachment.
-
-    mo_slpm_data_provider->delete_attachment(
-         exporting
-             ip_guid = ip_guid
-             ip_loio = ip_loio
-             ip_phio = ip_phio ).
-
-  endmethod.
-
-
-  method zif_slpm_data_manager~get_all_priorities.
-
-    if mo_slpm_data_provider is bound.
-      rt_priorities = mo_slpm_data_provider->get_all_priorities(  ).
-    endif.
-
-  endmethod.
-
-
-  method zif_slpm_data_manager~get_attachment.
-
-    if mo_slpm_data_provider is bound.
-
-      er_attachment = mo_slpm_data_provider->get_attachment(
-      exporting
-      ip_guid = ip_guid
-      ip_loio = ip_loio ip_phio = ip_phio ).
-
-    endif.
-
-  endmethod.
-
-
-  method zif_slpm_data_manager~get_attachments_list.
-
-    mo_slpm_data_provider->get_attachments_list(
-      exporting
-       ip_guid = ip_guid
-      importing
-       et_attachments_list = et_attachments_list
-       et_attachments_list_short = et_attachments_list_short ).
-
-  endmethod.
-
-  method zif_slpm_data_manager~get_attachment_content.
-
-    if mo_slpm_data_provider is bound.
-
-      mo_slpm_data_provider->get_attachment_content(
-       exporting
-           ip_guid = ip_guid
-           ip_loio = ip_loio
-           ip_phio = ip_phio
-         importing
-         er_attachment = er_attachment
-         er_stream = er_stream ).
-
-    endif.
-
-  endmethod.
-
-
-  method zif_slpm_data_manager~get_last_text.
-
-    if mo_slpm_data_provider is bound.
-
-      mo_slpm_data_provider->get_last_text( exporting ip_guid = ip_guid ).
-
-    endif.
-  endmethod.
-
-
-  method zif_slpm_data_manager~get_priorities_of_product.
-
-    if mo_slpm_data_provider is bound.
-      rt_priorities = mo_slpm_data_provider->get_priorities_of_product( ip_guid ).
-    endif.
-
-  endmethod.
-
-
-  method zif_slpm_data_manager~get_problem.
-
-    if mo_slpm_data_provider is bound.
-
-      es_result = mo_slpm_data_provider->get_problem( ip_guid ).
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~get_problems_list.
-
-    if mo_slpm_data_provider is bound.
-
-      et_result = mo_slpm_data_provider->get_problems_list(
-      exporting
-        it_filters = it_filters
-        it_order = it_order ).
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~get_texts.
-
-    mo_slpm_data_provider->get_texts(
-     exporting ip_guid = ip_guid
-     importing et_texts = et_texts ).
-
-  endmethod.
-
-  method zif_slpm_data_manager~get_list_of_possible_statuses.
-
-    if mo_slpm_data_provider is bound.
-
-      rt_statuses = mo_slpm_data_provider->get_list_of_possible_statuses( ip_status ).
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~get_list_of_processors.
-
-    if mo_slpm_data_provider is bound.
-
-      rt_processors = mo_slpm_data_provider->get_list_of_processors(  ).
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~get_list_of_companies.
-
-    if mo_slpm_data_provider is bound.
-
-      rt_companies = mo_slpm_data_provider->get_list_of_companies(  ).
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~get_frontend_configuration.
-
-    if mo_slpm_data_provider is bound.
-
-      rt_frontend_configuration = mo_slpm_data_provider->get_frontend_configuration( ip_application ).
-
-    endif.
-
-
-  endmethod.
-
-
-
-  method recalc_irt_sla.
-
-    data:lv_difference_in_seconds      type integer,
-         lv_timestamp_of_status_switch type timestamp,
-         lv_irt_update_timestamp       type timestamp,
-         lv_irt_update_timezone        type timezone,
-         lv_old_irt_timestamp          type timestamp,
-         lv_old_irt_timezone           type timezone,
-         lv_new_irt_timestamp          type timestamp,
-         lv_new_irt_timezone           type timezone,
-         lv_appt_guid                  type sc_aptguid,
-         lo_serv_profile_date_calc     type ref to zif_serv_profile_date_calc,
-         lv_avail_profile_name         type char258,
-         lv_time                       type sy-uzeit,
-         lv_date                       type sy-datum,
-         lv_system_timezone            type timezone,
-         ls_zslpm_irt_hist             type zslpm_irt_hist.
-
-    " Taking a timestamp when we switched back from 'Information Requested
-
-    get time stamp field lv_timestamp_of_status_switch.
-
-    " Taking last stored IRT SLA
-
-    select  update_timestamp update_timezone irttimestamp irttimezone apptguid
-        from zslpm_irt_hist
-        into (lv_irt_update_timestamp, lv_irt_update_timezone, lv_old_irt_timestamp, lv_old_irt_timezone, lv_appt_guid)
-       up to 1 rows
-         where problemguid = ip_guid order by update_timestamp descending.
-
-    endselect.
-
-    if sy-subrc eq 0.
-
-      " Calculating difference between movement from 'On Approval' to 'Information Requested' and backwards
-
-      lv_difference_in_seconds = zcl_assistant_utilities=>calc_duration_btw_timestamps(
-       exporting
-           ip_timestamp_1 = lv_irt_update_timestamp
-           ip_timestamp_2 = lv_timestamp_of_status_switch ).
-
-      " Calculating new value for IRT and storing it
-
-      lv_avail_profile_name = ip_avail_profile_name.
-
-      lo_serv_profile_date_calc = new zcl_serv_profile_date_calc( lv_avail_profile_name  ).
-
-      zcl_assistant_utilities=>get_date_time_from_timestamp(
-        exporting
-            ip_timestamp = lv_old_irt_timestamp
-            importing
-            ep_date = lv_date
-            ep_time = lv_time ).
-
-      lo_serv_profile_date_calc->add_seconds_to_date(
-        exporting
-            ip_added_seconds_total = lv_difference_in_seconds
-            ip_date_from = lv_date
-            ip_time_from = lv_time
-        importing
-            ep_sla_date = lv_date
-            ep_sla_time = lv_time ).
-
-      lv_system_timezone =  zcl_assistant_utilities=>get_system_timezone(  ).
-
-      convert date lv_date time lv_time into time stamp lv_new_irt_timestamp time zone lv_system_timezone.
-
-      update scapptseg set
-          tst_from =  lv_new_irt_timestamp
-          tst_to = lv_new_irt_timestamp
-      where
-          appt_guid = lv_appt_guid.
-
-      " Storing for further internal usage
-
-      ls_zslpm_irt_hist-irttimestamp = lv_new_irt_timestamp.
-      ls_zslpm_irt_hist-irttimezone = lv_system_timezone.
-      ls_zslpm_irt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
-      ls_zslpm_irt_hist-apptguid = lv_appt_guid.
-      ls_zslpm_irt_hist-problemguid = ip_guid.
-      get time stamp field ls_zslpm_irt_hist-update_timestamp.
-      ls_zslpm_irt_hist-irtperc = ip_irt_perc.
-      ls_zslpm_irt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
-      ls_zslpm_irt_hist-statusin = ip_statusin.
-      ls_zslpm_irt_hist-statusout = ip_statusout.
-      ls_zslpm_irt_hist-priorityin = ip_priorityin.
-      ls_zslpm_irt_hist-priorityout = ip_priorityout.
-
-      insert zslpm_irt_hist from ls_zslpm_irt_hist.
-
-    endif.
-
-  endmethod.
-
-
-  method store_irt_sla.
-
-
-    data:
-      lv_appt_guid      type sc_aptguid,
-      ls_zslpm_irt_hist type zslpm_irt_hist.
-
-    lv_appt_guid = me->get_srv_rfirst_appt_guid( ip_guid ).
-
-    " Storing old IRT SLA
-
-    select single tst_from zone_from into ( ls_zslpm_irt_hist-irttimestamp, ls_zslpm_irt_hist-irttimezone )
-     from scapptseg
-     where appt_guid = lv_appt_guid.
-
-    if sy-subrc eq 0.
-
-      ls_zslpm_irt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
-      ls_zslpm_irt_hist-apptguid = lv_appt_guid.
-      ls_zslpm_irt_hist-problemguid = ip_guid.
-      get time stamp field ls_zslpm_irt_hist-update_timestamp.
-      ls_zslpm_irt_hist-irtperc = ip_irt_perc.
-      ls_zslpm_irt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
-      ls_zslpm_irt_hist-statusin = ip_statusin.
-      ls_zslpm_irt_hist-statusout = ip_statusout.
-      ls_zslpm_irt_hist-priorityin = ip_priorityin.
-      ls_zslpm_irt_hist-priorityout = ip_priorityout.
-      ls_zslpm_irt_hist-manualchange = ip_manualchange.
-      ls_zslpm_irt_hist-username = sy-uname.
-
-
-      insert zslpm_irt_hist from ls_zslpm_irt_hist.
-
-    endif.
-
-  endmethod.
-
-
-  method store_mpt_sla.
-
-
-    data:
-      lo_slmp_problem_api       type ref to zcl_slpm_problem_api,
-      lt_appointments           type crmt_appointment_wrkt,
-      ls_srv_rready_appointment type crmt_appointment_wrk,
-      ls_zslpm_mpt_hist         type zslpm_mpt_hist.
-
-    lo_slmp_problem_api       = new zcl_slpm_problem_api( mo_active_configuration ).
-
-    lt_appointments = lo_slmp_problem_api->zif_custom_crm_order_read~get_all_appointments_by_guid( ip_guid ).
-
-    try.
-
-        ls_srv_rready_appointment = lt_appointments[ appt_type = 'SRV_RREADY' ].
-
-      catch cx_sy_itab_line_not_found.
-
-    endtry.
-
-    " Storing old IRT SLA
-
-    select single tst_from zone_from into ( ls_zslpm_mpt_hist-mpttimestamp, ls_zslpm_mpt_hist-mpttimezone )
-     from scapptseg
-     where appt_guid = ls_srv_rready_appointment-appt_guid.
-
-    if sy-subrc eq 0.
-
-      ls_zslpm_mpt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
-      ls_zslpm_mpt_hist-apptguid = ls_srv_rready_appointment-appt_guid.
-      ls_zslpm_mpt_hist-problemguid = ip_guid.
-      get time stamp field ls_zslpm_mpt_hist-update_timestamp.
-      ls_zslpm_mpt_hist-mptperc = ip_mpt_perc.
-      ls_zslpm_mpt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
-      ls_zslpm_mpt_hist-statusin = ip_statusin.
-      ls_zslpm_mpt_hist-statusout = ip_statusout.
-      ls_zslpm_mpt_hist-priorityin = ip_priorityin.
-      ls_zslpm_mpt_hist-priorityout = ip_priorityout.
-
-      insert zslpm_mpt_hist from ls_zslpm_mpt_hist.
-
-    endif.
+    mo_slpm_cache_controller->add_record( is_problem ).
 
   endmethod.
 
@@ -793,6 +226,185 @@ class zcl_slpm_data_manager_proxy implementation.
     endselect.
 
   endmethod.
+
+
+  method attach_observer.
+
+    append io_observer to mt_problem_observers.
+
+  endmethod.
+
+
+  method clear_text_vulnerabilities.
+
+    loop at mt_text_vulnerabilities_list assigning field-symbol(<ls_text_vulnerability>).
+
+      replace all occurrences of <ls_text_vulnerability>-expression in cp_text
+        with <ls_text_vulnerability>-replacement.
+
+    endloop.
+
+  endmethod.
+
+
+  method constructor.
+
+    mo_slpm_user = new zcl_slpm_user( sy-uname ).
+
+    mo_system_user ?= mo_slpm_user.
+
+    if mo_slpm_user->is_auth_to_read_problems(  ) eq abap_true.
+
+      mo_active_configuration = new zcl_slpm_configuration(  ).
+
+      mo_slpm_data_provider = new zcl_slpm_data_manager(
+        io_active_configuration = mo_active_configuration
+        io_system_user = me->mo_system_user ).
+
+    else.
+
+      " User has no authorizations to read problems
+
+      raise exception type zcx_slpm_data_manager_exc
+        exporting
+          textid         = zcx_slpm_data_manager_exc=>not_authorized_for_read
+          ip_system_user = sy-uname.
+
+    endif.
+
+    me->set_app_logger(  ).
+
+    me->fill_vulnerabilities_list(  ).
+
+    me->set_slpm_cache_controller(  ).
+
+
+  endmethod.
+
+
+  method decode_problem.
+
+    data:
+       lr_table_wa type ref to data.
+
+    field-symbols:
+      <fs_problem> type any.
+
+    create data lr_table_wa type (ip_table_name).
+
+    assign lr_table_wa->* to <fs_problem>.
+
+    if ( ir_problem is bound ).
+
+      assign ir_problem->* to <fs_problem>.
+
+      rs_problem =  <fs_problem>.
+
+
+    endif.
+
+
+  endmethod.
+
+
+  method fill_vulnerabilities_list.
+
+    mt_text_vulnerabilities_list = value #(
+          ( expression = '<script' replacement = '-script-open-tag-')
+          ( expression = '</script' replacement = '-script-close-tag-' )
+          ( expression = '<' replacement = '-<-' )
+          ( expression = '>' replacement = '->-' )
+    ).
+
+  endmethod.
+
+
+  method get_problem_from_cache.
+
+    " ------Use approach below if a general cache interface ZIF_CACHE is used
+
+*    data: lr_guid    type ref to data,
+*          lr_problem type ref to data.
+*
+*    get reference of ip_guid into lr_guid.
+*
+*    lr_problem = mo_slpm_cache_controller->get_record( lr_guid ).
+*
+*    rs_problem = decode_problem(
+*     exporting
+*          ip_table_name = 'ZCRM_ORDER_TS_SL_PROBLEM'
+*          ir_problem = lr_problem ).
+
+    " ------Use approach below if a dedicated problem cache interface ZIF_SLPM_PROBLEM_CACHE is used
+
+    rs_problem = mo_slpm_cache_controller->get_record( ip_guid ).
+
+  endmethod.
+
+
+  method get_problem_through_cache.
+
+
+    es_result = me->get_problem_from_cache( ip_guid ).
+
+    if es_result is initial.
+
+      es_result = mo_slpm_data_provider->get_problem( ip_guid ).
+
+      add_problem_to_cache( es_result ).
+
+    endif.
+
+
+  endmethod.
+
+
+  method get_srv_rfirst_appt_guid.
+
+    data:
+      lo_slmp_problem_api       type ref to zcl_slpm_problem_api,
+      lt_appointments           type crmt_appointment_wrkt,
+      ls_srv_rfirst_appointment type crmt_appointment_wrk.
+
+    lo_slmp_problem_api       = new zcl_slpm_problem_api( mo_active_configuration ).
+
+    lt_appointments = lo_slmp_problem_api->zif_custom_crm_order_read~get_all_appointments_by_guid( ip_guid ).
+
+    try.
+
+        ls_srv_rfirst_appointment = lt_appointments[ appt_type = 'SRV_RFIRST' ].
+
+        rp_appt_guid = ls_srv_rfirst_appointment-appt_guid.
+
+      catch cx_sy_itab_line_not_found.
+
+    endtry.
+
+
+  endmethod.
+
+
+  method notify_observers_on_create.
+
+    loop at mt_problem_observers assigning field-symbol(<ms_observer>).
+
+      <ms_observer>->problem_created( is_problem ).
+
+    endloop.
+
+  endmethod.
+
+
+  method notify_observers_on_update.
+
+    loop at mt_problem_observers assigning field-symbol(<ms_observer>).
+
+      <ms_observer>->problem_updated( is_problem ).
+
+    endloop.
+
+  endmethod.
+
 
   method post_update_external_actions.
 
@@ -1030,6 +642,371 @@ class zcl_slpm_data_manager_proxy implementation.
 
   endmethod.
 
+
+  method recalc_irt_sla.
+
+    data:lv_difference_in_seconds      type integer,
+         lv_timestamp_of_status_switch type timestamp,
+         lv_irt_update_timestamp       type timestamp,
+         lv_irt_update_timezone        type timezone,
+         lv_old_irt_timestamp          type timestamp,
+         lv_old_irt_timezone           type timezone,
+         lv_new_irt_timestamp          type timestamp,
+         lv_new_irt_timezone           type timezone,
+         lv_appt_guid                  type sc_aptguid,
+         lo_serv_profile_date_calc     type ref to zif_serv_profile_date_calc,
+         lv_avail_profile_name         type char258,
+         lv_time                       type sy-uzeit,
+         lv_date                       type sy-datum,
+         lv_system_timezone            type timezone,
+         ls_zslpm_irt_hist             type zslpm_irt_hist.
+
+    " Taking a timestamp when we switched back from 'Information Requested
+
+    get time stamp field lv_timestamp_of_status_switch.
+
+    " Taking last stored IRT SLA
+
+    select  update_timestamp update_timezone irttimestamp irttimezone apptguid
+        from zslpm_irt_hist
+        into (lv_irt_update_timestamp, lv_irt_update_timezone, lv_old_irt_timestamp, lv_old_irt_timezone, lv_appt_guid)
+       up to 1 rows
+         where problemguid = ip_guid order by update_timestamp descending.
+
+    endselect.
+
+    if sy-subrc eq 0.
+
+      " Calculating difference between movement from 'On Approval' to 'Information Requested' and backwards
+
+      lv_difference_in_seconds = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+       exporting
+           ip_timestamp_1 = lv_irt_update_timestamp
+           ip_timestamp_2 = lv_timestamp_of_status_switch ).
+
+      " Calculating new value for IRT and storing it
+
+      lv_avail_profile_name = ip_avail_profile_name.
+
+      lo_serv_profile_date_calc = new zcl_serv_profile_date_calc( lv_avail_profile_name  ).
+
+      zcl_assistant_utilities=>get_date_time_from_timestamp(
+        exporting
+            ip_timestamp = lv_old_irt_timestamp
+            importing
+            ep_date = lv_date
+            ep_time = lv_time ).
+
+      lo_serv_profile_date_calc->add_seconds_to_date(
+        exporting
+            ip_added_seconds_total = lv_difference_in_seconds
+            ip_date_from = lv_date
+            ip_time_from = lv_time
+        importing
+            ep_sla_date = lv_date
+            ep_sla_time = lv_time ).
+
+      lv_system_timezone =  zcl_assistant_utilities=>get_system_timezone(  ).
+
+      convert date lv_date time lv_time into time stamp lv_new_irt_timestamp time zone lv_system_timezone.
+
+      update scapptseg set
+          tst_from =  lv_new_irt_timestamp
+          tst_to = lv_new_irt_timestamp
+      where
+          appt_guid = lv_appt_guid.
+
+      " Storing for further internal usage
+
+      ls_zslpm_irt_hist-irttimestamp = lv_new_irt_timestamp.
+      ls_zslpm_irt_hist-irttimezone = lv_system_timezone.
+      ls_zslpm_irt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
+      ls_zslpm_irt_hist-apptguid = lv_appt_guid.
+      ls_zslpm_irt_hist-problemguid = ip_guid.
+      get time stamp field ls_zslpm_irt_hist-update_timestamp.
+      ls_zslpm_irt_hist-irtperc = ip_irt_perc.
+      ls_zslpm_irt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
+      ls_zslpm_irt_hist-statusin = ip_statusin.
+      ls_zslpm_irt_hist-statusout = ip_statusout.
+      ls_zslpm_irt_hist-priorityin = ip_priorityin.
+      ls_zslpm_irt_hist-priorityout = ip_priorityout.
+
+      insert zslpm_irt_hist from ls_zslpm_irt_hist.
+
+    endif.
+
+  endmethod.
+
+
+  method set_app_logger.
+
+    mv_app_log_object = mo_active_configuration->get_parameter_value( 'APP_LOG_OBJECT' ).
+    mv_app_log_subobject = 'ZDATAMANAGER'.
+
+    mo_log = zcl_logger_to_app_log=>get_instance( ).
+    mo_log->set_object_and_subobject(
+          exporting
+            ip_object    =   mv_app_log_object
+            ip_subobject =   mv_app_log_subobject ).
+
+  endmethod.
+
+
+  method set_slpm_cache_controller.
+
+    if  mo_slpm_cache_controller is not bound.
+
+      mo_slpm_cache_controller = new zcl_slpm_problem_snlru_cache( mo_active_configuration ).
+
+    endif.
+
+
+  endmethod.
+
+
+  method store_irt_sla.
+
+
+    data:
+      lv_appt_guid      type sc_aptguid,
+      ls_zslpm_irt_hist type zslpm_irt_hist.
+
+    lv_appt_guid = me->get_srv_rfirst_appt_guid( ip_guid ).
+
+    " Storing old IRT SLA
+
+    select single tst_from zone_from into ( ls_zslpm_irt_hist-irttimestamp, ls_zslpm_irt_hist-irttimezone )
+     from scapptseg
+     where appt_guid = lv_appt_guid.
+
+    if sy-subrc eq 0.
+
+      ls_zslpm_irt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
+      ls_zslpm_irt_hist-apptguid = lv_appt_guid.
+      ls_zslpm_irt_hist-problemguid = ip_guid.
+      get time stamp field ls_zslpm_irt_hist-update_timestamp.
+      ls_zslpm_irt_hist-irtperc = ip_irt_perc.
+      ls_zslpm_irt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
+      ls_zslpm_irt_hist-statusin = ip_statusin.
+      ls_zslpm_irt_hist-statusout = ip_statusout.
+      ls_zslpm_irt_hist-priorityin = ip_priorityin.
+      ls_zslpm_irt_hist-priorityout = ip_priorityout.
+      ls_zslpm_irt_hist-manualchange = ip_manualchange.
+      ls_zslpm_irt_hist-username = sy-uname.
+
+
+      insert zslpm_irt_hist from ls_zslpm_irt_hist.
+
+    endif.
+
+  endmethod.
+
+
+  method store_mpt_sla.
+
+
+    data:
+      lo_slmp_problem_api       type ref to zcl_slpm_problem_api,
+      lt_appointments           type crmt_appointment_wrkt,
+      ls_srv_rready_appointment type crmt_appointment_wrk,
+      ls_zslpm_mpt_hist         type zslpm_mpt_hist.
+
+    lo_slmp_problem_api       = new zcl_slpm_problem_api( mo_active_configuration ).
+
+    lt_appointments = lo_slmp_problem_api->zif_custom_crm_order_read~get_all_appointments_by_guid( ip_guid ).
+
+    try.
+
+        ls_srv_rready_appointment = lt_appointments[ appt_type = 'SRV_RREADY' ].
+
+      catch cx_sy_itab_line_not_found.
+
+    endtry.
+
+    " Storing old IRT SLA
+
+    select single tst_from zone_from into ( ls_zslpm_mpt_hist-mpttimestamp, ls_zslpm_mpt_hist-mpttimezone )
+     from scapptseg
+     where appt_guid = ls_srv_rready_appointment-appt_guid.
+
+    if sy-subrc eq 0.
+
+      ls_zslpm_mpt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
+      ls_zslpm_mpt_hist-apptguid = ls_srv_rready_appointment-appt_guid.
+      ls_zslpm_mpt_hist-problemguid = ip_guid.
+      get time stamp field ls_zslpm_mpt_hist-update_timestamp.
+      ls_zslpm_mpt_hist-mptperc = ip_mpt_perc.
+      ls_zslpm_mpt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
+      ls_zslpm_mpt_hist-statusin = ip_statusin.
+      ls_zslpm_mpt_hist-statusout = ip_statusout.
+      ls_zslpm_mpt_hist-priorityin = ip_priorityin.
+      ls_zslpm_mpt_hist-priorityout = ip_priorityout.
+
+      insert zslpm_mpt_hist from ls_zslpm_mpt_hist.
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~create_attachment.
+
+    if mo_slpm_data_provider is bound.
+
+      mo_slpm_data_provider->create_attachment(
+      exporting
+          ip_content = ip_content
+          ip_file_name = ip_file_name
+          ip_guid = ip_guid
+          ip_mime_type = ip_mime_type ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~create_problem.
+
+
+    data: ls_problem_newstate           type zcrm_order_ts_sl_problem,
+          lo_slpm_prob_change_notifier  type ref to zif_crm_order_change_notifier,
+          lo_slpm_user                  type ref to zif_slpm_user,
+          lv_log_record_text            type string,
+          lv_product_id                 type comt_product_id,
+          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store.
+
+
+    " User has no authorizations to create problems
+
+    if mo_slpm_user->is_auth_to_create_problems(  ) eq abap_false.
+
+      raise exception type zcx_slpm_data_manager_exc
+        exporting
+          textid         = zcx_slpm_data_manager_exc=>not_authorized_for_create
+          ip_system_user = sy-uname.
+
+    endif.
+
+
+    if mo_slpm_data_provider is bound.
+
+      " Check authorizations of a user to create a problem against a company
+
+      "lo_slpm_user = new zcl_slpm_user( sy-uname ).
+
+      if ( mo_slpm_user->is_auth_to_crea_company( is_problem-companybusinesspartner ) eq abap_false ).
+
+        message e004(zslpm_data_manager) with sy-uname is_problem-companybusinesspartner into lv_log_record_text.
+
+        mo_log->zif_logger~err( lv_log_record_text ).
+
+        raise exception type zcx_slpm_data_manager_exc
+          exporting
+            textid         = zcx_slpm_data_manager_exc=>no_auth_for_creat_for_company
+            ip_system_user = sy-uname
+            ip_company_bp  = is_problem-companybusinesspartner.
+
+      endif.
+
+      " Check authorizations of a user to create a problem against a product
+
+      lv_product_id = is_problem-productname.
+
+      if ( mo_slpm_user->is_auth_to_crea_product( lv_product_id ) eq abap_false ).
+
+        message e006(zslpm_data_manager) with sy-uname lv_product_id into lv_log_record_text.
+
+        mo_log->zif_logger~err( lv_log_record_text ).
+
+        raise exception type zcx_slpm_data_manager_exc
+          exporting
+            textid         = zcx_slpm_data_manager_exc=>no_auth_for_creat_for_prod
+            ip_system_user = sy-uname
+            ip_product_id  = lv_product_id.
+
+      endif.
+
+      " Notification on a problem change
+
+      try.
+
+          rs_result = mo_slpm_data_provider->create_problem( exporting is_problem = is_problem ).
+
+*          me->notify_on_problem_change(
+*              exporting
+*              is_problem_new_state = rs_result
+*              is_problem_old_state = is_problem ).
+
+        catch  zcx_crm_order_api_exc zcx_assistant_utilities_exc into data(lcx_process_exception).
+
+          raise exception type zcx_slpm_data_manager_exc
+            exporting
+              textid           = zcx_slpm_data_manager_exc=>internal_error
+              ip_error_message = lcx_process_exception->get_text( ).
+
+      endtry.
+
+      " Adding a change notifier observer for created problem
+
+      me->attach_observer( new zcl_slpm_prob_change_notifier(
+           io_active_configuration = mo_active_configuration
+           is_problem_new_state = rs_result
+           is_problem_old_state = is_problem ) ).
+
+      " Adding a history store observer for created problem
+
+      me->attach_observer( new zcl_slpm_problem_history_store( rs_result-guid ) ).
+
+      " Executing notification on create
+
+      notify_observers_on_create( rs_result ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~create_text.
+
+    if mo_slpm_data_provider is bound.
+
+      data lv_text type string.
+
+      lv_text = ip_text.
+
+      clear_text_vulnerabilities( changing cp_text = lv_text ).
+
+      mo_slpm_data_provider->create_text(
+             exporting
+                 ip_guid = ip_guid
+                 ip_tdid = ip_tdid
+                 ip_text = lv_text ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~delete_attachment.
+
+    mo_slpm_data_provider->delete_attachment(
+         exporting
+             ip_guid = ip_guid
+             ip_loio = ip_loio
+             ip_phio = ip_phio ).
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_all_priorities.
+
+    if mo_slpm_data_provider is bound.
+      rt_priorities = mo_slpm_data_provider->get_all_priorities(  ).
+    endif.
+
+  endmethod.
+
+
   method zif_slpm_data_manager~get_all_statuses.
 
     if mo_slpm_data_provider is bound.
@@ -1040,6 +1017,146 @@ class zcl_slpm_data_manager_proxy implementation.
 
   endmethod.
 
+
+  method zif_slpm_data_manager~get_attachment.
+
+    if mo_slpm_data_provider is bound.
+
+      er_attachment = mo_slpm_data_provider->get_attachment(
+      exporting
+      ip_guid = ip_guid
+      ip_loio = ip_loio ip_phio = ip_phio ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_attachments_list.
+
+    mo_slpm_data_provider->get_attachments_list(
+      exporting
+       ip_guid = ip_guid
+      importing
+       et_attachments_list = et_attachments_list
+       et_attachments_list_short = et_attachments_list_short ).
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_attachment_content.
+
+    if mo_slpm_data_provider is bound.
+
+      mo_slpm_data_provider->get_attachment_content(
+       exporting
+           ip_guid = ip_guid
+           ip_loio = ip_loio
+           ip_phio = ip_phio
+         importing
+         er_attachment = er_attachment
+         er_stream = er_stream ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_frontend_configuration.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_frontend_configuration = mo_slpm_data_provider->get_frontend_configuration( ip_application ).
+
+    endif.
+
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_last_text.
+
+    if mo_slpm_data_provider is bound.
+
+      mo_slpm_data_provider->get_last_text( exporting ip_guid = ip_guid ).
+
+    endif.
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_list_of_companies.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_companies = mo_slpm_data_provider->get_list_of_companies(  ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_list_of_possible_statuses.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_statuses = mo_slpm_data_provider->get_list_of_possible_statuses( ip_status ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_list_of_processors.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_processors = mo_slpm_data_provider->get_list_of_processors(  ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_priorities_of_product.
+
+    if mo_slpm_data_provider is bound.
+      rt_priorities = mo_slpm_data_provider->get_priorities_of_product( ip_guid ).
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_problem.
+
+    if mo_slpm_data_provider is bound.
+
+      if ( mo_active_configuration->get_parameter_value( 'USE_SNLRU_CACHE' ) eq 'X').
+
+        es_result = me->get_problem_through_cache( ip_guid ).
+
+      else.
+
+        es_result = mo_slpm_data_provider->get_problem( ip_guid ).
+
+      endif.
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_problems_list.
+
+    if mo_slpm_data_provider is bound.
+
+      et_result = mo_slpm_data_provider->get_problems_list(
+      exporting
+        it_filters = it_filters
+        it_order = it_order ).
+
+    endif.
+
+  endmethod.
 
 
   method zif_slpm_data_manager~get_problem_sla_irt_history.
@@ -1052,6 +1169,7 @@ class zcl_slpm_data_manager_proxy implementation.
 
   endmethod.
 
+
   method zif_slpm_data_manager~get_problem_sla_mpt_history.
 
     if mo_slpm_data_provider is bound.
@@ -1063,75 +1181,134 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
-  method clear_text_vulnerabilities.
+  method zif_slpm_data_manager~get_texts.
 
-    loop at mt_text_vulnerabilities_list assigning field-symbol(<ls_text_vulnerability>).
-
-      replace all occurrences of <ls_text_vulnerability>-expression in cp_text
-        with <ls_text_vulnerability>-replacement.
-
-    endloop.
+    mo_slpm_data_provider->get_texts(
+     exporting ip_guid = ip_guid
+     importing et_texts = et_texts ).
 
   endmethod.
 
-  method fill_vulnerabilities_list.
 
-    mt_text_vulnerabilities_list = value #(
-          ( expression = '<script' replacement = '-script-open-tag-')
-          ( expression = '</script' replacement = '-script-close-tag-' )
-          ( expression = '<' replacement = '-<-' )
-          ( expression = '>' replacement = '->-' )
-    ).
+  method zif_slpm_data_manager~update_problem.
+
+    data: ls_problem_old_state          type zcrm_order_ts_sl_problem,
+          lv_log_record_text            type string,
+          lv_product_id                 type comt_product_id,
+          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store.
+
+    " User has no authorizations to update problems
+
+    if mo_slpm_user->is_auth_to_update_problems(  ) eq abap_false.
+
+      raise exception type zcx_slpm_data_manager_exc
+        exporting
+          textid         = zcx_slpm_data_manager_exc=>not_authorized_for_update
+          ip_system_user = sy-uname.
+
+    endif.
+
+
+    if mo_slpm_data_provider is bound.
+
+
+      try.
+
+          ls_problem_old_state = mo_slpm_data_provider->get_problem(
+              exporting
+                ip_guid = ip_guid ).
+
+          " Check authorizations of a user to update a problem against a company
+
+          if ( mo_slpm_user->is_auth_to_update_company( ls_problem_old_state-companybusinesspartner ) eq abap_false ).
+
+            message e009(zslpm_data_manager) with sy-uname ls_problem_old_state-companybusinesspartner into lv_log_record_text.
+
+            mo_log->zif_logger~err( lv_log_record_text ).
+
+            raise exception type zcx_slpm_data_manager_exc
+              exporting
+                textid         = zcx_slpm_data_manager_exc=>no_auth_for_update_for_company
+                ip_system_user = sy-uname
+                ip_company_bp  = ls_problem_old_state-companybusinesspartner.
+
+          endif.
+
+          " Check authorizations of a user to update a problem against a product
+
+          lv_product_id = ls_problem_old_state-productname.
+
+          if ( mo_slpm_user->is_auth_to_update_product( lv_product_id ) eq abap_false ).
+
+            message e010(zslpm_data_manager) with sy-uname lv_product_id into lv_log_record_text.
+
+            mo_log->zif_logger~err( lv_log_record_text ).
+
+            raise exception type zcx_slpm_data_manager_exc
+              exporting
+                textid         = zcx_slpm_data_manager_exc=>no_auth_for_update_for_prod
+                ip_system_user = sy-uname
+                ip_product_id  = lv_product_id.
+
+          endif.
+
+
+          rs_result = mo_slpm_data_provider->update_problem(
+            exporting
+                ip_guid = ip_guid
+                is_problem = is_problem ).
+
+          me->post_update_external_actions(
+               exporting
+               is_problem_new_state = rs_result
+               is_problem_old_state = ls_problem_old_state
+               is_payload = is_problem ).
+
+
+*          me->notify_on_problem_change(
+*                     exporting
+*                     is_problem_new_state = rs_result
+*                     is_problem_old_state = ls_problem_old_state ).
+
+
+          " Adding a change notifier observer for updated problem
+
+          me->attach_observer( new zcl_slpm_prob_change_notifier(
+                     io_active_configuration = mo_active_configuration
+                     is_problem_new_state = rs_result
+                     is_problem_old_state = ls_problem_old_state ) ).
+
+          " Adding an observer for update problem
+
+          me->attach_observer( new zcl_slpm_problem_history_store( rs_result-guid ) ).
+
+          " Executing notification on update
+
+          notify_observers_on_update( is_problem ).
+
+          " Invalidating record in cache
+
+          if ( mo_active_configuration->get_parameter_value( 'USE_SNLRU_CACHE' ) eq 'X').
+
+            invalidate_problem_in_cache( rs_result-guid ).
+
+          endif.
+
+        catch zcx_crm_order_api_exc into data(lcx_process_exception).
+
+          raise exception type zcx_slpm_data_manager_exc
+            exporting
+              textid           = zcx_slpm_data_manager_exc=>internal_error
+              ip_error_message = lcx_process_exception->get_text( ).
+      endtry.
+
+    endif.
 
   endmethod.
 
-  method notify_observers_on_create.
+  method invalidate_problem_in_cache.
 
-    loop at mt_problem_observers assigning field-symbol(<ms_observer>).
-
-      <ms_observer>->problem_created( is_problem ).
-
-    endloop.
-
-  endmethod.
-
-  method notify_observers_on_update.
-
-    loop at mt_problem_observers assigning field-symbol(<ms_observer>).
-
-      <ms_observer>->problem_updated( is_problem ).
-
-    endloop.
-
-  endmethod.
-
-  method attach_observer.
-
-    append io_observer to mt_problem_observers.
-
-  endmethod.
-
-  method get_srv_rfirst_appt_guid.
-
-    data:
-      lo_slmp_problem_api       type ref to zcl_slpm_problem_api,
-      lt_appointments           type crmt_appointment_wrkt,
-      ls_srv_rfirst_appointment type crmt_appointment_wrk.
-
-    lo_slmp_problem_api       = new zcl_slpm_problem_api( mo_active_configuration ).
-
-    lt_appointments = lo_slmp_problem_api->zif_custom_crm_order_read~get_all_appointments_by_guid( ip_guid ).
-
-    try.
-
-        ls_srv_rfirst_appointment = lt_appointments[ appt_type = 'SRV_RFIRST' ].
-
-        rp_appt_guid = ls_srv_rfirst_appointment-appt_guid.
-
-      catch cx_sy_itab_line_not_found.
-
-    endtry.
-
+    mo_slpm_cache_controller->invalidate_record( ip_guid ).
 
   endmethod.
 

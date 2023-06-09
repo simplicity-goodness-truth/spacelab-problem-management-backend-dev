@@ -24,7 +24,8 @@ class zcl_slpm_data_manager definition
       mv_app_log_object         type balobj_d,
       mv_app_log_subobject      type balsubobj,
       mt_internal_pool          type zslpm_tt_users,
-      mt_proc_pool_assigned_pos type zorg_model_tt_positions.
+      mt_proc_pool_assigned_pos type zorg_model_tt_positions,
+      mo_slpm_cache_controller  type ref to zif_slpm_problem_cache.
 
     methods:
 
@@ -87,7 +88,37 @@ class zcl_slpm_data_manager definition
         importing
           ip_guid             type crmt_object_guid
         returning
-          value(rp_available) type bool.
+          value(rp_available) type bool,
+
+      get_problem_from_cache
+        importing
+          ip_guid           type crmt_object_guid
+        returning
+          value(rs_problem) type zcrm_order_ts_sl_problem
+        raising
+          zcx_slpm_configuration_exc,
+
+      add_problem_to_cache
+        importing
+          is_problem type zcrm_order_ts_sl_problem
+        raising
+          zcx_slpm_configuration_exc,
+
+
+      get_problem_through_cache
+        importing
+          ip_guid          type crmt_object_guid
+        returning
+          value(es_result) type zcrm_order_ts_sl_problem
+        raising
+          zcx_crm_order_api_exc
+          zcx_assistant_utilities_exc
+          zcx_slpm_configuration_exc
+          zcx_system_user_exc,
+
+      set_slpm_cache_controller
+        raising
+          zcx_slpm_configuration_exc.
 
 
 endclass.
@@ -279,10 +310,19 @@ class zcl_slpm_data_manager implementation.
 
       loop at lt_crm_guids assigning field-symbol(<ls_crm_guid>).
 
-        ls_result = me->zif_slpm_data_manager~get_problem(
-                 exporting
-                   ip_guid = <ls_crm_guid>-guid
-                   ).
+        if ( mo_active_configuration->get_parameter_value( 'USE_SNLRU_CACHE' ) eq 'X').
+
+          ls_result = me->get_problem_through_cache( <ls_crm_guid>-guid ).
+
+        else.
+
+          ls_result = me->zif_slpm_data_manager~get_problem(
+                   exporting
+                     ip_guid = <ls_crm_guid>-guid
+                     ).
+
+
+        endif.
 
 
 
@@ -382,6 +422,7 @@ class zcl_slpm_data_manager implementation.
     mo_system_user = io_system_user.
     me->set_app_logger(  ).
     mo_slpm_problem_api = new zcl_slpm_problem_api( io_active_configuration ).
+    me->set_slpm_cache_controller(  ).
 
   endmethod.
 
@@ -962,5 +1003,53 @@ class zcl_slpm_data_manager implementation.
     endloop.
 
   endmethod.
+
+
+  method get_problem_from_cache.
+
+    rs_problem = mo_slpm_cache_controller->get_record( ip_guid ).
+
+  endmethod.
+
+
+  method get_problem_through_cache.
+
+
+    es_result = me->get_problem_from_cache( ip_guid ).
+
+    if es_result is initial.
+
+
+      es_result = me->zif_slpm_data_manager~get_problem(
+                 exporting
+                   ip_guid = ip_guid
+                   ).
+
+      add_problem_to_cache( es_result ).
+
+    endif.
+
+
+  endmethod.
+
+
+  method add_problem_to_cache.
+
+
+    mo_slpm_cache_controller->add_record( is_problem ).
+
+  endmethod.
+
+  method set_slpm_cache_controller.
+
+    if  mo_slpm_cache_controller is not bound.
+
+      mo_slpm_cache_controller = new zcl_slpm_problem_snlru_cache( mo_active_configuration ).
+
+    endif.
+
+
+  endmethod.
+
 
 endclass.
