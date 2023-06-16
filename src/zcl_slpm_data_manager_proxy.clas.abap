@@ -161,9 +161,7 @@ class zcl_slpm_data_manager_proxy definition
         returning
           value(rs_problem) type zcrm_order_ts_sl_problem.
 
-
 endclass.
-
 
 
 class zcl_slpm_data_manager_proxy implementation.
@@ -352,6 +350,15 @@ class zcl_slpm_data_manager_proxy implementation.
       es_result = mo_slpm_data_provider->get_problem( ip_guid ).
 
       add_problem_to_cache( es_result ).
+
+    else.
+
+      mo_slpm_data_provider->fill_cached_prb_calc_flds(
+
+        exporting
+            ip_guid = ip_guid
+        changing
+            cs_problem = es_result ).
 
     endif.
 
@@ -961,6 +968,16 @@ class zcl_slpm_data_manager_proxy implementation.
 
       notify_observers_on_create( rs_result ).
 
+
+      " Add new problem guid to a table of cached guids
+
+      if ( mo_active_configuration->get_parameter_value( 'USE_SNLRU_CACHE_FOR_PROBLEM_GUIDS_LIST' ) eq 'X').
+
+        mo_slpm_cache_controller->add_guid_to_cached_prob_guids( rs_result-guid ).
+
+      endif.
+
+
     endif.
 
   endmethod.
@@ -1309,6 +1326,36 @@ class zcl_slpm_data_manager_proxy implementation.
   method invalidate_problem_in_cache.
 
     mo_slpm_cache_controller->invalidate_record( ip_guid ).
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~fill_cached_prb_calc_flds.
+
+    if mo_slpm_data_provider is bound.
+
+      mo_slpm_data_provider->fill_cached_prb_calc_flds(
+        exporting
+            ip_guid = ip_guid
+        changing
+            cs_problem = cs_problem ).
+
+    endif.
+
+  endmethod.
+
+  method zif_slpm_data_manager~calc_non_stand_sla_status.
+
+    if mo_slpm_data_provider is bound.
+
+      mo_slpm_data_provider->calc_non_stand_sla_status(
+        exporting
+            ip_seconds_in_processing = ip_seconds_in_processing
+        changing
+            cs_problem = cs_problem ).
+
+    endif.
+
 
   endmethod.
 

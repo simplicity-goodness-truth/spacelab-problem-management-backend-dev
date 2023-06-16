@@ -70,7 +70,12 @@ class zcl_slpm_problem_snlru_cache implementation.
         endif.
 
       catch cx_shm_build_failed.
+
         return.
+
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
+
     endtry.
 
 
@@ -101,27 +106,38 @@ class zcl_slpm_problem_snlru_cache implementation.
 
 
       catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
-        cx_shm_exclusive_lock_active cx_shm_inconsistent cx_shm_no_active_version cx_shm_build_failed.
+        cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_build_failed.
 
         return.
 
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
+
     endtry.
 
-    lo_root ?= lo_area->get_root( ).
+    try.
 
-    if lo_root is  initial.
+        lo_root ?= lo_area->get_root( ).
 
-      create object lo_root area handle lo_area.
+        if lo_root is  initial.
 
-    endif.
+          create object lo_root area handle lo_area.
 
-    call method lo_root->add_problem_to_cache
-      exporting
-        is_problem = ms_problem.
+        endif.
 
-    lo_area->set_root( lo_root ).
+        call method lo_root->add_problem_to_cache
+          exporting
+            is_problem = ms_problem.
 
-    lo_area->detach_commit( ).
+        lo_area->set_root( lo_root ).
+
+        lo_area->detach_commit( ).
+
+      catch cx_sy_ref_is_initial.
+
+    endtry.
+
+
 
   endmethod.
 
@@ -147,28 +163,39 @@ class zcl_slpm_problem_snlru_cache implementation.
             lo_area = zcl_slpm_area=>attach_for_read( ).
 
           catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
-         cx_shm_exclusive_lock_active cx_shm_inconsistent cx_shm_no_active_version cx_shm_read_lock_active.
+         cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_read_lock_active .
 
             return.
 
+          catch cx_shm_inconsistent.
+            zcl_slpm_area=>free_area( ).
+
         endtry.
 
-        lo_area->root->get_problem_from_cache(
-           exporting
-               ip_guid = <fs_guid>
-           importing
-               rp_hit_segment = lv_hit_segment
-               rs_problem = ls_problem ).
+        try.
 
-        create data lr_problem type zcrm_order_ts_sl_problem.
+            lo_area->root->get_problem_from_cache(
+               exporting
+                   ip_guid = <fs_guid>
+               importing
+                   rp_hit_segment = lv_hit_segment
+                   rs_problem = ls_problem ).
 
-        assign lr_problem->* to <fs_problem>.
+            create data lr_problem type zcrm_order_ts_sl_problem.
 
-        <fs_problem> = ls_problem.
+            assign lr_problem->* to <fs_problem>.
 
-        get reference of <fs_problem> into rs_record.
+            <fs_problem> = ls_problem.
 
-        lo_area->detach( ).
+            get reference of <fs_problem> into rs_record.
+
+            lo_area->detach( ).
+
+          catch cx_sy_ref_is_initial.
+
+        endtry.
+
+
 
       endif.
 
@@ -215,25 +242,34 @@ class zcl_slpm_problem_snlru_cache implementation.
         lo_area = zcl_slpm_area=>attach_for_update( ).
 
       catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
-        cx_shm_exclusive_lock_active cx_shm_inconsistent cx_shm_no_active_version cx_shm_build_failed.
+        cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_build_failed .
+
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
 
         return.
 
     endtry.
 
-    lo_root ?= lo_area->get_root( ).
+    try.
 
-    if lo_root is  initial.
-      create object lo_root area handle lo_area.
-    endif.
+        lo_root ?= lo_area->get_root( ).
 
-    call method lo_root->add_problem_to_cache
-      exporting
-        is_problem = is_record.
+        if lo_root is  initial.
+          create object lo_root area handle lo_area.
+        endif.
 
-    lo_area->set_root( lo_root ).
+        call method lo_root->add_problem_to_cache
+          exporting
+            is_problem = is_record.
 
-    lo_area->detach_commit( ).
+        lo_area->set_root( lo_root ).
+
+        lo_area->detach_commit( ).
+
+      catch cx_sy_ref_is_initial.
+
+    endtry.
 
   endmethod.
 
@@ -246,23 +282,31 @@ class zcl_slpm_problem_snlru_cache implementation.
 
         lo_area = zcl_slpm_area=>attach_for_read( ).
 
-        " lo_area = zcl_slpm_area=>attach_for_update(  ).
-
       catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
-     cx_shm_exclusive_lock_active cx_shm_inconsistent cx_shm_no_active_version cx_shm_read_lock_active.
+       cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_read_lock_active.
 
         return.
 
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
+
     endtry.
 
-    lo_area->root->get_problem_from_cache(
-        exporting
-            ip_guid = ip_guid
-        importing
-            rs_problem = rs_record
-            rp_hit_segment = lv_hit_segment ).
+    try.
 
-    lo_area->detach( ).
+        lo_area->root->get_problem_from_cache(
+            exporting
+                ip_guid = ip_guid
+            importing
+                rs_problem = rs_record
+                rp_hit_segment = lv_hit_segment ).
+
+        lo_area->detach( ).
+
+      catch cx_sy_ref_is_initial.
+
+    endtry.
+
 
 
     rebuild_segments(
@@ -283,26 +327,34 @@ class zcl_slpm_problem_snlru_cache implementation.
         lo_area = zcl_slpm_area=>attach_for_update( ).
 
       catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
-        cx_shm_exclusive_lock_active cx_shm_inconsistent cx_shm_no_active_version cx_shm_build_failed.
+        cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_build_failed cx_sy_ref_is_initial.
 
         return.
 
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
+
     endtry.
 
-    lo_root ?= lo_area->get_root( ).
+    try.
 
-    if lo_root is  initial.
-      create object lo_root area handle lo_area.
-    endif.
+        lo_root ?= lo_area->get_root( ).
 
-    call method lo_root->invalidate_problem_in_cache
-      exporting
-        ip_guid = ip_guid.
+        if lo_root is  initial.
+          create object lo_root area handle lo_area.
+        endif.
 
-    lo_area->set_root( lo_root ).
+        call method lo_root->invalidate_problem_in_cache
+          exporting
+            ip_guid = ip_guid.
 
-    lo_area->detach_commit( ).
+        lo_area->set_root( lo_root ).
 
+        lo_area->detach_commit( ).
+
+      catch cx_sy_ref_is_initial.
+
+    endtry.
 
 
   endmethod.
@@ -331,27 +383,185 @@ class zcl_slpm_problem_snlru_cache implementation.
         lo_area = zcl_slpm_area=>attach_for_update( ).
 
       catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
-        cx_shm_exclusive_lock_active cx_shm_inconsistent cx_shm_no_active_version cx_shm_build_failed.
+        cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_build_failed cx_sy_ref_is_initial.
+
+        return.
+
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
+
+    endtry.
+
+    try.
+
+        lo_root ?= lo_area->get_root( ).
+
+        if lo_root is  initial.
+          create object lo_root area handle lo_area.
+        endif.
+
+        call method lo_root->rebuild_segments(
+          exporting
+            ip_hit_segment = ip_hit_segment
+            is_problem     = is_problem ).
+
+        lo_area->set_root( lo_root ).
+
+        lo_area->detach_commit( ).
+
+      catch cx_sy_ref_is_initial.
+
+    endtry.
+
+
+
+  endmethod.
+
+  method zif_slpm_problem_cache~get_all_problems_guids.
+
+    data:
+         lo_area        type ref to zcl_slpm_area.
+
+    try.
+
+        lo_area = zcl_slpm_area=>attach_for_read( ).
+
+      catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
+     cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_read_lock_active.
+
+        return.
+
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
+
+    endtry.
+
+    try.
+
+        rt_all_problems_guids = lo_area->root->get_cached_prob_guids( ).
+
+        lo_area->detach( ).
+
+      catch cx_sy_ref_is_initial.
+
+    endtry.
+
+  endmethod.
+
+  method zif_slpm_problem_cache~set_all_problems_guids.
+
+    data:
+      lo_area type ref to zcl_slpm_area,
+      lo_root type ref to zcl_slpm_shma.
+
+    try.
+        lo_area = zcl_slpm_area=>attach_for_update( ).
+
+      catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
+        cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_build_failed .
+
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
 
         return.
 
     endtry.
 
-    lo_root ?= lo_area->get_root( ).
+    try.
 
-    if lo_root is  initial.
-      create object lo_root area handle lo_area.
-    endif.
+        lo_root ?= lo_area->get_root( ).
 
-    call method lo_root->rebuild_segments(
-      exporting
-        ip_hit_segment = ip_hit_segment
-        is_problem     = is_problem ).
+        if lo_root is  initial.
+          create object lo_root area handle lo_area.
+        endif.
 
-    lo_area->set_root( lo_root ).
+        lo_root->set_cached_prob_guids( it_all_problem_guids ).
 
-    lo_area->detach_commit( ).
+        lo_area->set_root( lo_root ).
 
+        lo_area->detach_commit( ).
+
+      catch cx_sy_ref_is_initial.
+
+    endtry.
+
+  endmethod.
+
+  method zif_slpm_problem_cache~add_guid_to_cached_prob_guids.
+
+    data:
+      lo_area type ref to zcl_slpm_area,
+      lo_root type ref to zcl_slpm_shma.
+
+    try.
+        lo_area = zcl_slpm_area=>attach_for_update( ).
+
+      catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
+        cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_build_failed .
+
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
+
+        return.
+
+    endtry.
+
+    try.
+
+        lo_root ?= lo_area->get_root( ).
+
+        if lo_root is  initial.
+          create object lo_root area handle lo_area.
+        endif.
+
+        lo_root->add_guid_to_cached_prob_guids( ip_guid ).
+
+        lo_area->set_root( lo_root ).
+
+        lo_area->detach_commit( ).
+
+      catch cx_sy_ref_is_initial.
+
+    endtry.
+
+  endmethod.
+
+  method zif_slpm_problem_cache~invalidate_cached_prob_guids.
+
+    data:
+      lo_area type ref to zcl_slpm_area,
+      lo_root type ref to zcl_slpm_shma.
+
+    try.
+        lo_area = zcl_slpm_area=>attach_for_update( ).
+
+      catch cx_shm_pending_lock_removed cx_shm_change_lock_active cx_shm_version_limit_exceeded
+        cx_shm_exclusive_lock_active cx_shm_no_active_version cx_shm_build_failed .
+
+      catch cx_shm_inconsistent.
+        zcl_slpm_area=>free_area( ).
+
+        return.
+
+    endtry.
+
+    try.
+
+        lo_root ?= lo_area->get_root( ).
+
+        if lo_root is  initial.
+          create object lo_root area handle lo_area.
+        endif.
+
+        lo_root->invalidate_cached_prob_guids(  ).
+
+        lo_area->set_root( lo_root ).
+
+        lo_area->detach_commit( ).
+
+      catch cx_sy_ref_is_initial.
+
+    endtry.
 
 
   endmethod.

@@ -29,7 +29,23 @@ class zcl_slpm_shma definition
       rebuild_segments
         importing
           is_problem     type zcrm_order_ts_sl_problem
-          ip_hit_segment type char1.
+          ip_hit_segment type char1,
+
+      set_cached_prob_guids
+        importing
+          it_problems_guids type zcrm_order_tt_guids,
+
+      get_cached_prob_guids
+        returning
+          value(rt_problems_guids) type zcrm_order_tt_guids,
+
+      add_guid_to_cached_prob_guids
+        importing
+          ip_guid type crmt_object_guid,
+
+      invalidate_cached_prob_guids,
+
+      invalidate_all_cached_problems.
 
     class-methods:
 
@@ -53,17 +69,11 @@ class zcl_slpm_shma definition
 
     data:
 
-      "mt_cached_problems_hot     type sorted table of zcrm_order_ts_sl_problem with unique key guid,
+      mt_cached_problems_guids   type table of zcrm_order_ts_guid with key primary_key components guid,
 
-      mt_cached_problems_hot     type table of zcrm_order_ts_sl_problem with key primary_key components guid,
-
-      "mt_cached_problems_warm    type sorted table of zcrm_order_ts_sl_problem with unique key guid,
-
-      mt_cached_problems_warm    type table of zcrm_order_ts_sl_problem with key primary_key components guid,
-
-      "mt_cached_problems_cold    type sorted table of zcrm_order_ts_sl_problem with unique key guid,
-
-      mt_cached_problems_cold    type table of zcrm_order_ts_sl_problem with key primary_key components guid,
+      mt_cached_problems_hot     type  table of zcrm_order_ts_sl_problem with key primary_key components guid,
+      mt_cached_problems_warm    type  table of zcrm_order_ts_sl_problem with key primary_key components guid,
+      mt_cached_problems_cold    type  table of zcrm_order_ts_sl_problem with key primary_key components guid,
 
       mv_problem_cache_size_hot  type integer,
       mv_problem_cache_size_warm type integer,
@@ -221,8 +231,6 @@ class zcl_slpm_shma implementation.
         insert is_problem into mt_cached_problems_hot index 1.
 
 
-
-
       when 'W'.
 
         " Problem found in WARM segment:
@@ -267,6 +275,11 @@ class zcl_slpm_shma implementation.
 
       when 'H'.
 
+        " Removal of possible duplicates, which could potentially occur during a
+        " parallel execution of $count and real data fetching
+
+        delete adjacent duplicates from mt_cached_problems_hot comparing guid.
+
         " Shifting HOT segment:
         " If amount of records in HOT segment is greater than configured, then
         " 1. Move the record to HEAD of WARM segment
@@ -287,6 +300,12 @@ class zcl_slpm_shma implementation.
         endif.
 
       when 'W'.
+
+        " Removal of possible duplicates, which could potentially occur during a
+        " parallel execution of $count and real data fetching
+
+        delete adjacent duplicates from mt_cached_problems_warm comparing guid.
+
 
         " Shifting WARM segment:
         " If amount of records in WARM segment is greater than configured, then
@@ -309,6 +328,12 @@ class zcl_slpm_shma implementation.
 
 
       when 'C'.
+
+        " Removal of possible duplicates, which could potentially occur during a
+        " parallel execution of $count and real data fetching
+
+        delete adjacent duplicates from mt_cached_problems_cold comparing guid.
+
 
         " Shifting COLD segment:
         " If amount of records in COLD segment is greater than configured, then
@@ -345,6 +370,43 @@ class zcl_slpm_shma implementation.
 
     endif.
 
+
+  endmethod.
+
+  method set_cached_prob_guids.
+
+    mt_cached_problems_guids = it_problems_guids.
+
+  endmethod.
+
+  method add_guid_to_cached_prob_guids.
+
+    data wa_cached_problems_guids type zcrm_order_ts_guid.
+
+    wa_cached_problems_guids-guid = ip_guid.
+
+    append  wa_cached_problems_guids to mt_cached_problems_guids.
+
+  endmethod.
+
+  method invalidate_cached_prob_guids.
+
+    clear mt_cached_problems_guids.
+
+  endmethod.
+
+  method get_cached_prob_guids.
+
+    rt_problems_guids = mt_cached_problems_guids.
+
+  endmethod.
+
+  method invalidate_all_cached_problems.
+
+    clear:
+        mt_cached_problems_cold,
+        mt_cached_problems_warm,
+        mt_cached_problems_hot.
 
   endmethod.
 

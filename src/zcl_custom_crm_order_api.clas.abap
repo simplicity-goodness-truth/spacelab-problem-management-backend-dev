@@ -4,7 +4,9 @@ class zcl_custom_crm_order_api definition
 
   public section.
 
-    interfaces: zif_custom_crm_order_read,
+    interfaces:
+
+      zif_custom_crm_order_read,
       zif_custom_crm_order_create,
       zif_custom_crm_order_update,
       zif_custom_crm_order_init,
@@ -2389,6 +2391,28 @@ class zcl_custom_crm_order_api implementation.
         ip_guid = ip_guid
         ip_tdid = ip_tdid
         ip_text = ip_text ).
+
+  endmethod.
+
+  method zif_custom_crm_order_read~get_sla_status_by_guid.
+
+    data:
+       lo_cl_ags_crm_1o_api     type ref to cl_ags_crm_1o_api.
+
+
+    call method cl_ags_crm_1o_api=>get_instance
+      exporting
+        iv_header_guid                = ip_guid
+        iv_process_mode               = 'C'
+        iv_process_type               = mv_process_type
+      importing
+        eo_instance                   = lo_cl_ags_crm_1o_api
+      exceptions
+        invalid_parameter_combination = 1
+        error_occurred                = 2
+        others                        = 3.
+
+    rs_sla_status = lo_cl_ags_crm_1o_api->get_sla_status(  ).
 
   endmethod.
 

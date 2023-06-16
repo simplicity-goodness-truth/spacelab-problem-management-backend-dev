@@ -83,11 +83,15 @@ interface zif_custom_crm_order_read
       importing
         ip_guid                type crmt_object_guid
       returning
-        value(rt_appointments) type crmt_appointment_wrkt.
+        value(rt_appointments) type crmt_appointment_wrkt,
 
-
-
-
+    get_sla_status_by_guid
+      importing
+        ip_guid              type crmt_object_guid
+      returning
+        value(rs_sla_status) type ais_sla_status
+      raising
+        zcx_crm_order_api_exc.
 
 
 endinterface.

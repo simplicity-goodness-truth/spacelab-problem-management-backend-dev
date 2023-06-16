@@ -519,4 +519,14 @@ class zcl_custom_crm_order_api_proxy implementation.
 
   endmethod.
 
+  method zif_custom_crm_order_read~get_sla_status_by_guid.
+
+    if ( mo_custom_crm_order_read is bound ).
+
+      rs_sla_status = mo_custom_crm_order_read->get_sla_status_by_guid( ip_guid ).
+
+    endif.
+
+  endmethod.
+
 endclass.
