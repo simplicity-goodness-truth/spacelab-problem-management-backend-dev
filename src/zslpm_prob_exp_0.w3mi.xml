@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_W3MI" serializer_version="v2.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <NAME>ZSLPM_PROB_EXP_0</NAME>
+   <TEXT>zslpm_prob_exp_0</TEXT>
+   <PARAMS>
+    <WWWPARAMS>
+     <NAME>fileextension</NAME>
+     <VALUE>.docx</VALUE>
+    </WWWPARAMS>
+    <WWWPARAMS>
+     <NAME>filename</NAME>
+     <VALUE>zslpm_prob_exp_0.docx</VALUE>
+    </WWWPARAMS>
+    <WWWPARAMS>
+     <NAME>mimetype</NAME>
+     <VALUE>application/msword</VALUE>
+    </WWWPARAMS>
+   </PARAMS>
+  </asx:values>
+ </asx:abap>
+</abapGit>
