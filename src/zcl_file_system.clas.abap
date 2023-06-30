@@ -42,4 +42,19 @@ class zcl_file_system implementation.
 
   endmethod.
 
+  method zif_file_system~save_text_to_fs.
+
+    try.
+        open dataset ip_file_path_and_name  for output in text mode encoding utf-8.
+
+        transfer ip_file_contents_text to ip_file_path_and_name.
+
+        close dataset ip_file_path_and_name.
+
+      catch cx_sy_file_open cx_sy_file_authority cx_sy_too_many_files.
+
+    endtry.
+
+  endmethod.
+
 endclass.
