@@ -1351,6 +1351,7 @@ class zcl_slpm_data_manager_proxy implementation.
       mo_slpm_data_provider->calc_non_stand_sla_status(
         exporting
             ip_seconds_in_processing = ip_seconds_in_processing
+            ip_created_at_user_tzone = ip_created_at_user_tzone
         changing
             cs_problem = cs_problem ).
 

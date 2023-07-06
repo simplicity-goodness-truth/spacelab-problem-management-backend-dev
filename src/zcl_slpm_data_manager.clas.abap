@@ -1076,7 +1076,8 @@ class zcl_slpm_data_manager implementation.
     data: ls_sla_status            type ais_sla_status,
           lv_current_timestamp     type timestamp,
           lv_system_timezone       type timezone,
-          lv_seconds_total_in_proc type integer.
+          lv_seconds_total_in_proc type integer,
+          lv_created_at_user_tzone type comt_created_at_usr.
 
     " ===========  Total processing time  ===========
 
@@ -1086,11 +1087,17 @@ class zcl_slpm_data_manager implementation.
 
       lv_system_timezone =  zcl_assistant_utilities=>get_system_timezone(  ).
 
-      convert date sy-datum time sy-uzeit into time stamp lv_current_timestamp time zone lv_system_timezone.
+       convert date sy-datum time sy-uzeit into time stamp lv_current_timestamp time zone 'UTC'.
+
+      " Converting CREATED_AT date to a user timezone according to CRM logic
+
+      lv_created_at_user_tzone = zcl_assistant_utilities=>convert_timestamp_to_timezone(
+        ip_timestamp = cs_problem-created_at
+        ip_timezone = sy-zonlo ).
 
       lv_seconds_total_in_proc = zcl_assistant_utilities=>calc_duration_btw_timestamps(
         exporting
-            ip_timestamp_1 = cs_problem-created_at
+            ip_timestamp_1 = lv_created_at_user_tzone
             ip_timestamp_2 = lv_current_timestamp ).
 
     endif.
@@ -1104,6 +1111,7 @@ class zcl_slpm_data_manager implementation.
       me->zif_slpm_data_manager~calc_non_stand_sla_status(
         exporting
             ip_seconds_in_processing = lv_seconds_total_in_proc
+            ip_created_at_user_tzone = lv_created_at_user_tzone
         changing
             cs_problem = cs_problem ).
 
@@ -1136,7 +1144,7 @@ class zcl_slpm_data_manager implementation.
 
       lv_seconds_for_irt = zcl_assistant_utilities=>calc_duration_btw_timestamps(
           exporting
-              ip_timestamp_1 = cs_problem-created_at
+              ip_timestamp_1 = ip_created_at_user_tzone
               ip_timestamp_2 = cs_problem-irt_timestamp ).
 
 
@@ -1153,7 +1161,7 @@ class zcl_slpm_data_manager implementation.
 
       " Additional 999 percentage according to standard
 
-      if cs_problem-irt_perc > 200.
+      if cs_problem-irt_perc > 500.
 
         cs_problem-irt_perc = 999.
 
@@ -1174,7 +1182,7 @@ class zcl_slpm_data_manager implementation.
 
       lv_seconds_for_mpt = zcl_assistant_utilities=>calc_duration_btw_timestamps(
           exporting
-              ip_timestamp_1 = cs_problem-created_at
+              ip_timestamp_1 = ip_created_at_user_tzone
               ip_timestamp_2 = cs_problem-mpt_timestamp ).
 
       " Calculating percentage for MPT
@@ -1190,7 +1198,7 @@ class zcl_slpm_data_manager implementation.
 
       " Additional 999 percentage according to standard
 
-      if cs_problem-mpt_perc > 200.
+      if cs_problem-mpt_perc > 500.
 
         cs_problem-mpt_perc = 999.
 
