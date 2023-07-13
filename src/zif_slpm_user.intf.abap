@@ -67,6 +67,10 @@ methods:
     importing
       ip_company_bp        type bu_partner
     returning
+      value(rb_authorized) type bool,
+
+  is_auth_for_internal_att
+    returning
       value(rb_authorized) type bool.
 
 

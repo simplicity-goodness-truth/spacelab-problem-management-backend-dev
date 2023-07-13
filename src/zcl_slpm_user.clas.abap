@@ -338,4 +338,18 @@ class zcl_slpm_user implementation.
 
   endmethod.
 
+  method zif_slpm_user~is_auth_for_internal_att.
+
+    authority-check object 'ZSLPMATTVS'
+        id 'ZVSBLTY' field 'I'.
+
+    if sy-subrc = 0.
+
+      rb_authorized = abap_true.
+
+    endif.
+
+
+  endmethod.
+
 endclass.

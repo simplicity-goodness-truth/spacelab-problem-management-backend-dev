@@ -378,7 +378,8 @@ class zcl_slpm_dpc_ext implementation.
           lv_dp_facade          type ref to /iwbep/if_mgw_dp_fw_facade,
           lt_request_header     type         tihttpnvp,
           ls_request_header     like line of lt_request_header,
-          lo_slpm_data_provider type ref to zif_slpm_data_manager.
+          lo_slpm_data_provider type ref to zif_slpm_data_manager,
+          lv_visilibility       type char1.
 
     loop at it_key_tab assigning field-symbol(<ls_guid>).
       move <ls_guid>-value to lv_guid.
@@ -388,10 +389,22 @@ class zcl_slpm_dpc_ext implementation.
 
     lt_request_header = lv_dp_facade->/iwbep/if_mgw_dp_int_facade~get_request_header( ).
 
+    " Getting SLUG parameter
+
     read table lt_request_header into ls_request_header with key name = 'slug'.
 
     if ls_request_header is not initial.
       lv_file_name = ls_request_header-value.
+    endif.
+
+    " Getting VISIBILITY parameter
+
+    clear ls_request_header.
+
+    read table lt_request_header into ls_request_header with key name = 'visibility'.
+
+    if ls_request_header is not initial.
+      lv_visilibility = ls_request_header-value.
     endif.
 
 
@@ -409,7 +422,8 @@ class zcl_slpm_dpc_ext implementation.
         ip_content = lv_content
         ip_file_name = lv_file_name
         ip_mime_type = lv_mime_type
-        ip_guid = lv_guid ).
+        ip_guid = lv_guid
+        ip_visibility = lv_visilibility ).
 
       catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
         zcx_assistant_utilities_exc zcx_slpm_configuration_exc

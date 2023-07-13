@@ -1046,6 +1046,7 @@ class zcl_custom_crm_order_api implementation.
 
       endif.
 
+
       append ls_entity to et_attachments_list.
 
     endloop.
@@ -1988,8 +1989,8 @@ class zcl_custom_crm_order_api implementation.
       iv_file_name    = ip_file_name
       iv_content_type = ip_mime_type
     importing
-      es_loio         = data(ls_loio)
-      es_phio         = data(ls_phio)
+      es_loio         = es_loio
+      es_phio         = es_phio
       es_error        = data(ls_error)
   ).
 
@@ -2415,5 +2416,6 @@ class zcl_custom_crm_order_api implementation.
     rs_sla_status = lo_cl_ags_crm_1o_api->get_sla_status(  ).
 
   endmethod.
+
 
 endclass.

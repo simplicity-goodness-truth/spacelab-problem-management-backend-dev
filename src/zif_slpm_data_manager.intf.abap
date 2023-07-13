@@ -74,6 +74,7 @@ interface zif_slpm_data_manager
         ip_file_name type string
         ip_mime_type type string
         ip_content   type xstring
+        ip_visibility type char1 optional
       raising
         zcx_slpm_configuration_exc
         zcx_crm_order_api_exc
