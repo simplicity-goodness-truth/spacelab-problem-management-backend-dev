@@ -88,7 +88,8 @@ interface zif_slpm_data_manager
       raising
         zcx_crm_order_api_exc
         zcx_system_user_exc
-        zcx_assistant_utilities_exc,
+        zcx_assistant_utilities_exc
+        zcx_slpm_configuration_exc,
 
     create_text
       importing
