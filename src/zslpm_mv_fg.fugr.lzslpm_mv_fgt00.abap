@@ -1,6 +1,24 @@
 *---------------------------------------------------------------------*
 *    view related data declarations
 *---------------------------------------------------------------------*
+*...processing: ZCRMOSLAESCALVW.................................*
+TABLES: ZCRMOSLAESCALVW, *ZCRMOSLAESCALVW. "view work areas
+CONTROLS: TCTRL_ZCRMOSLAESCALVW
+TYPE TABLEVIEW USING SCREEN '0031'.
+DATA: BEGIN OF STATUS_ZCRMOSLAESCALVW. "state vector
+          INCLUDE STRUCTURE VIMSTATUS.
+DATA: END OF STATUS_ZCRMOSLAESCALVW.
+* Table for entries selected to show on screen
+DATA: BEGIN OF ZCRMOSLAESCALVW_EXTRACT OCCURS 0010.
+INCLUDE STRUCTURE ZCRMOSLAESCALVW.
+          INCLUDE STRUCTURE VIMFLAGTAB.
+DATA: END OF ZCRMOSLAESCALVW_EXTRACT.
+* Table for all entries loaded from database
+DATA: BEGIN OF ZCRMOSLAESCALVW_TOTAL OCCURS 0010.
+INCLUDE STRUCTURE ZCRMOSLAESCALVW.
+          INCLUDE STRUCTURE VIMFLAGTAB.
+DATA: END OF ZCRMOSLAESCALVW_TOTAL.
+
 *...processing: ZSLPMCUSTPRODVW.................................*
 TABLES: ZSLPMCUSTPRODVW, *ZSLPMCUSTPRODVW. "view work areas
 CONTROLS: TCTRL_ZSLPMCUSTPRODVW
@@ -128,6 +146,7 @@ INCLUDE STRUCTURE ZSLPMSTATFLOWVW.
 DATA: END OF ZSLPMSTATFLOWVW_TOTAL.
 
 *.........table declarations:.................................*
+TABLES: ZCRMO_SLA_ESCAL                .
 TABLES: ZSLPM_CUST_PROD                .
 TABLES: ZSLPM_CUST_SYST                .
 TABLES: ZSLPM_EMAIL_RULE               .

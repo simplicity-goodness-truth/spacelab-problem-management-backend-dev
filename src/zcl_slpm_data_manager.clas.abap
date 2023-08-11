@@ -400,6 +400,7 @@ class zcl_slpm_data_manager implementation.
 
         if it_filters is not initial.
 
+
           lv_include_record = abap_true.
 
           get reference of ls_result into lr_entity.
@@ -419,6 +420,7 @@ class zcl_slpm_data_manager implementation.
           endif.
 
         endif.
+
 
 
         " User can only see the companies for which he/she is authorized
