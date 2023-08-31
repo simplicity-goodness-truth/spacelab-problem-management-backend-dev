@@ -1,4 +1,4 @@
-class zcl_serv_profile_date_calc definition
+class zcl_serv_profile definition
   public
   final
   create public .
@@ -11,7 +11,7 @@ class zcl_serv_profile_date_calc definition
         importing
           ip_service_profile type char258.
 
-    interfaces zif_serv_profile_date_calc.
+    interfaces zif_serv_profile.
 
   protected section.
   private section.
@@ -111,7 +111,7 @@ endclass.
 
 
 
-class zcl_serv_profile_date_calc implementation.
+class zcl_serv_profile implementation.
 
   method constructor.
 
@@ -513,7 +513,7 @@ class zcl_serv_profile_date_calc implementation.
 
   endmethod.
 
-  method zif_serv_profile_date_calc~add_hours_to_date.
+  method zif_serv_profile~add_hours_to_date.
 
     if ( mv_ruleid is initial ) or ( mt_rule_tab is initial ).
       return.
@@ -732,7 +732,7 @@ class zcl_serv_profile_date_calc implementation.
 
   endmethod.
 
-  method zif_serv_profile_date_calc~add_seconds_to_date.
+  method zif_serv_profile~add_seconds_to_date.
 
     if ( mv_ruleid is initial ) or ( mt_rule_tab is initial ).
       return.
@@ -948,6 +948,79 @@ class zcl_serv_profile_date_calc implementation.
 
     ep_sla_date = lv_date_shifted.
     ep_sla_time = lv_time_shifted.
+
+  endmethod.
+
+  method zif_serv_profile~is_now_an_availability_time.
+
+    data:
+      lv_time_now        type sy-uzeit,
+      lv_date_now        type sy-datum,
+      lv_timestamp_now   type timestamp,
+      lv_from_field_name type string,
+      lv_to_field_name   type string,
+      lt_all_from_to     type standard table of ty_from.
+
+
+    rp_result = abap_true.
+
+    " Getting current time and date
+
+    get time stamp field lv_timestamp_now.
+
+    zcl_assistant_utilities=>get_date_time_from_timestamp(
+        exporting
+            ip_timestamp = lv_timestamp_now
+        importing
+            ep_date = lv_date_now
+            ep_time = lv_time_now ).
+
+    " Check if today is not a holiday
+
+    if me->is_date_holiday( lv_date_now ) eq abap_false.
+
+      me->get_field_name_for_date(
+         exporting
+             ip_date = lv_date_now
+         importing
+             ep_from_field_name = lv_from_field_name
+             ep_to_field_name = lv_to_field_name ).
+
+      " Preparing a list of work periods within a particular work day
+
+      me->set_list_of_periods(
+          exporting
+           ip_date = lv_date_now
+           ip_from_field_name = lv_from_field_name
+           ip_to_field_name = lv_to_field_name
+          importing
+           et_all_from_to = lt_all_from_to ).
+
+      " Checking if now is a working time
+
+      if lt_all_from_to is initial.
+
+        rp_result = abap_false.
+
+      endif.
+
+      loop at lt_all_from_to assigning field-symbol(<ls_all_from_to>).
+
+        if ( lv_time_now > <ls_all_from_to>-to ) or
+        ( lv_time_now < <ls_all_from_to>-from ).
+
+          rp_result = abap_false.
+
+        endif.      .
+
+      endloop.
+
+    else.
+
+      rp_result = abap_false.
+
+    endif.
+
 
   endmethod.
 

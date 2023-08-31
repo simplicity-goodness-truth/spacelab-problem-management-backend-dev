@@ -727,15 +727,23 @@ class zcl_slpm_data_manager implementation.
 
     " Processor take over: when is enabled
 
-    cs_problem-processortakeoverenabled = cond bu_partner( when ( cs_problem-processorbusinesspartner  is initial )
-        or ( cs_problem-processorbusinesspartner eq '0' )
-        then switch char5( cs_problem-status
+*    cs_problem-processortakeoverenabled = cond bu_partner( when ( cs_problem-processorbusinesspartner  is initial )
+*        or ( cs_problem-processorbusinesspartner eq '0' )
+*        then switch char5( cs_problem-status
+*
+*              when 'E0001'    then abap_true
+*              when 'E0002'    then abap_true
+*              when 'E0015'    then abap_true
+*                  else abap_false )
+*
+*        else abap_false ).
+*
 
-              when 'E0001'    then abap_true
-              when 'E0002'    then abap_true
-              when 'E0015'    then abap_true
-                  else abap_false )
+    " ViaRight Requirement: take over should be possible in all statuses
 
+    cs_problem-processortakeoverenabled = cond bu_partner(
+    when cs_problem-processorbusinesspartner ne mo_system_user->get_businesspartner( ) then
+       abap_true
         else abap_false ).
 
     " Processor priority change: when is enabled
@@ -777,7 +785,7 @@ class zcl_slpm_data_manager implementation.
 
         lo_organizational_model = new zcl_organizational_model( lv_proc_pool_org_unit ).
 
-        mt_proc_pool_assigned_pos = lo_organizational_model->get_assigned_pos_of_org_unit(  ).
+        mt_proc_pool_assigned_pos = lo_organizational_model->get_assigned_pos_of_org_unit( abap_true ).
 
         sort mt_proc_pool_assigned_pos by businesspartner.
 
@@ -797,6 +805,9 @@ class zcl_slpm_data_manager implementation.
           ls_processor-username = <ls_proc_pool_assigned_pos>-businesspartner.
           ls_processor-searchtag1 = <ls_proc_pool_assigned_pos>-stext.
 
+          " Assuming, that on level 2 we have a department responsible for processing
+          ls_processor-searchtag2 = <ls_proc_pool_assigned_pos>-level2oobjidtext.
+
           lv_bp_in_processing = <ls_proc_pool_assigned_pos>-businesspartner.
 
         elseif lv_bp_in_processing eq <ls_proc_pool_assigned_pos>-businesspartner.
@@ -813,6 +824,9 @@ class zcl_slpm_data_manager implementation.
           ls_processor-fullname = <ls_proc_pool_assigned_pos>-fullname.
           ls_processor-username = <ls_proc_pool_assigned_pos>-businesspartner.
           ls_processor-searchtag1 = <ls_proc_pool_assigned_pos>-stext.
+
+          " Assuming, that on level 2 we have a department responsible for processing
+          ls_processor-searchtag2 = <ls_proc_pool_assigned_pos>-level2oobjidtext.
 
           lv_bp_in_processing = <ls_proc_pool_assigned_pos>-businesspartner.
 

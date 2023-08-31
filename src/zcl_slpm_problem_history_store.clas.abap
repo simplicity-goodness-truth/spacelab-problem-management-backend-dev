@@ -24,7 +24,8 @@ class zcl_slpm_problem_history_store definition
       ms_zslpm_pr_his_hdr type zslpm_pr_his_hdr,
       ms_problem          type zcrm_order_ts_sl_problem,
       mv_file_name        type string,
-      mv_change_guid      type sysuuid_x16.
+      mv_change_guid      type sysuuid_x16,
+      mo_password         type string value 'veYlJeW&C6'.
 
     methods:
 
@@ -407,6 +408,87 @@ class zcl_slpm_problem_history_store implementation.
     wa_zslpm_pr_his_rec-value = mv_file_name.
 
     insert zslpm_pr_his_rec from wa_zslpm_pr_his_rec.
+
+  endmethod.
+
+  method zif_slpm_problem_history_store~arch_orphaned_history_records.
+
+    data:
+      lo_system_user          type ref to zif_system_user,
+      lo_slpm_user            type ref to zif_slpm_user,
+      lo_active_configuration type ref to zif_slpm_configuration,
+      lo_slpm_problem_api     type ref to zcl_slpm_problem_api,
+      lt_problems_guids       type zcrm_order_tt_guids,
+      lt_orphaned_guids       type table of crmt_object_guid,
+      lt_history_store        type table of zslpm_pr_his_hdr.
+
+
+    lo_slpm_user = new zcl_slpm_user( sy-uname ).
+
+    lo_system_user ?= lo_slpm_user.
+
+    if lo_slpm_user->is_auth_to_read_problems(  ) eq abap_true.
+
+      lo_active_configuration = new zcl_slpm_configuration(  ).
+
+      lo_slpm_problem_api = new zcl_slpm_problem_api( lo_active_configuration ).
+
+      lt_problems_guids      = lo_slpm_problem_api->zif_custom_crm_order_read~get_guids_list(  ).
+
+      select
+        mandt change_guid guid
+        username change_date change_time
+        event archived
+            into table lt_history_store
+                from zslpm_pr_his_hdr
+                    where archived is null.
+
+      loop at lt_history_store assigning field-symbol(<ls_history_rec>).
+
+        if not line_exists( lt_problems_guids[ guid = <ls_history_rec>-guid ] ).
+
+          update zslpm_pr_his_hdr set archived = 'X'
+              where guid = <ls_history_rec>-guid.
+
+        endif.
+
+      endloop.
+
+
+    else.
+
+      " User has no authorizations to read problems
+
+      raise exception type zcx_slpm_data_manager_exc
+        exporting
+          textid         = zcx_slpm_data_manager_exc=>not_authorized_for_read
+          ip_system_user = sy-uname.
+
+    endif.
+
+  endmethod.
+
+  method zif_slpm_problem_history_store~delete_arch_history_records.
+
+    data lt_archived_his_records type table of sysuuid_x16.
+
+    select
+     change_guid
+        into table lt_archived_his_records
+            from zslpm_pr_his_hdr
+                where archived eq 'X'.
+
+    if ip_password eq mo_password. " Just a safety protection for db records deletion
+
+      loop at lt_archived_his_records assigning field-symbol(<ls_archived_his_record>).
+
+        delete from zslpm_pr_his_rec where change_guid eq <ls_archived_his_record>.
+
+        delete from zslpm_pr_his_hdr where change_guid eq <ls_archived_his_record>.
+
+      endloop.
+
+    endif.
 
   endmethod.
 

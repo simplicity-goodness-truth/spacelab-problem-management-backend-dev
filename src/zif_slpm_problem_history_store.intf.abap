@@ -13,6 +13,18 @@ interface zif_slpm_problem_history_store
 
     get_problem_history_hierarchy
       returning
-        value(rt_zslpm_pr_his_hry) type zslpm_tt_pr_his_hry.
+        value(rt_zslpm_pr_his_hry) type zslpm_tt_pr_his_hry,
+
+    arch_orphaned_history_records
+      raising
+        zcx_slpm_data_manager_exc
+        zcx_crm_order_api_exc
+        zcx_assistant_utilities_exc
+        zcx_slpm_configuration_exc
+        zcx_system_user_exc,
+
+    delete_arch_history_records
+      importing
+        ip_password type string.
 
 endinterface.

@@ -6,6 +6,8 @@ interface zif_custom_crm_order_sla_escal
     process_escalations
       raising
         zcx_crm_order_api_exc
-        zcx_assistant_utilities_exc.
+        zcx_assistant_utilities_exc,
+
+    clear_escal_log.
 
 endinterface.
