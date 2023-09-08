@@ -8,6 +8,7 @@ class zcl_slpm_dpc_ext definition
     methods /iwbep/if_mgw_appl_srv_runtime~create_stream redefinition.
     methods /iwbep/if_mgw_appl_srv_runtime~delete_stream redefinition.
   protected section.
+    methods supportteamset_get_entityset redefinition.
     methods problemhistory02_get_entityset redefinition.
     methods slampthistoryset_get_entityset redefinition.
     methods slairthistoryset_get_entityset redefinition.
@@ -202,6 +203,7 @@ class zcl_slpm_dpc_ext implementation.
       catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
         zcx_assistant_utilities_exc zcx_slpm_configuration_exc
         zcx_system_user_exc into data(lcx_process_exception).
+
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -1046,6 +1048,26 @@ class zcl_slpm_dpc_ext implementation.
 
       et_entityset = lo_slpm_problem_history_store->get_problem_history_hierarchy(  ).
     endif.
+
+  endmethod.
+
+
+  method supportteamset_get_entityset.
+
+    data lo_slpm_data_provider type ref to zif_slpm_data_manager.
+
+    try.
+
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        et_entityset = lo_slpm_data_provider->get_list_of_support_teams( ).
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+            zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+            zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
 
   endmethod.
 

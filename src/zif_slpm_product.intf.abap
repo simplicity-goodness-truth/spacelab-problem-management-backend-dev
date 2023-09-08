@@ -10,7 +10,10 @@ interface zif_slpm_product
       returning value(rp_org_unit) type pd_objid_r,
 
     get_signature_for_updates
-      returning value(rp_signature) type lxechar1024.
+      returning value(rp_signature) type lxechar1024,
+
+    get_processing_org_unit
+      returning value(rp_org_unit) type pd_objid_r.
 
 
 endinterface.

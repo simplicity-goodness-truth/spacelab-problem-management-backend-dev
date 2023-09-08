@@ -7,7 +7,7 @@ class zcl_organizational_model definition
 
     methods constructor
       importing
-        ip_root_org_unit type pd_objid_r.
+        ip_root_org_unit type pd_objid_r optional.
 
     interfaces zif_organizational_model .
 
@@ -23,24 +23,8 @@ class zcl_organizational_model definition
       mv_root_org_unit type pd_objid_r.
 
 
-    methods: get_org_unit_code_and_text
-      importing
-        ip_org_unit      type pd_objid_r
-        ip_otype         type otype
-      exporting
-        ep_org_unit_code type short_d
-        ep_org_unit_text type stext,
+    methods:
 
-      get_bp_of_org_unit
-        importing
-          ip_org_unit  type pd_objid_r
-        returning
-          value(ep_bp) type bu_partner,
-      get_org_bp_name
-        importing
-          ip_bp          type bu_partner
-        returning
-          value(ep_name) type bu_nameor2,
       get_pos_and_users_of_org_unit
         exporting
           et_positions_and_users_short type crmt_orgman_swhactor_tab
@@ -67,19 +51,30 @@ class zcl_organizational_model implementation.
   endmethod.
 
 
-  method get_bp_of_org_unit.
+  method zif_organizational_model~get_bp_of_org_unit.
 
 
-    select single sobid into ep_bp
-      from hrp1001
-       where objid = ip_org_unit and
-         sclas = 'BP'.
+*    select single sobid into ep_bp
+*      from hrp1001
+*       where objid = ip_org_unit and
+*         sclas = 'BP'.
+
+    " If there are several BPs exist in HRP1001, then
+    " we need to take the oldest one (where begin date is higher)
+
+    select sobid up to 1 rows into ep_bp
+        from hrp1001
+            where objid = ip_org_unit and
+            sclas = 'BP'
+            order by begda descending.
+
+    endselect.
 
 
   endmethod.
 
 
-  method get_org_bp_name.
+  method zif_organizational_model~get_org_bp_name.
 
     if ( ip_bp is not initial ) and ( ip_bp ne '0000000000' ) .
 
@@ -97,7 +92,7 @@ class zcl_organizational_model implementation.
   endmethod.
 
 
-  method get_org_unit_code_and_text.
+  method zif_organizational_model~get_org_unit_code_and_text.
 
     select single short stext into (ep_org_unit_code, ep_org_unit_text)
         from hrp1000
@@ -133,7 +128,7 @@ class zcl_organizational_model implementation.
 
     try.
 
-        lv_next_upper_position = it_positions_and_users_struc[ objid = cs_position-objid ]-pup.
+        lv_next_upper_position = it_positions_and_users_struc[ objid = cs_position-objid otype = cs_position-otype ]-pup.
 
         while lv_search_complete eq abap_false.
 
@@ -162,6 +157,32 @@ class zcl_organizational_model implementation.
 
     do 4 times.
 
+      " Setting org. unit code
+
+      lv_field_name = |LEVEL| & |{ sy-index }| & |OOBJID|.
+
+      if <field> is assigned.
+        unassign <field>.
+      endif.
+
+      try.
+
+          if lt_found_levels[ lines( lt_found_levels ) - sy-index + 1 ]  is not initial.
+
+            assign lt_found_levels[ lines( lt_found_levels ) - sy-index + 1 ]-objid to <value>.
+
+            assign component lv_field_name of structure cs_position to <field>.
+
+            <field> = <value>.
+
+          endif.
+
+        catch cx_sy_itab_line_not_found.
+
+      endtry.
+
+      " Setting org.unit text
+
       lv_field_name = |LEVEL| & |{ sy-index }| & |OOBJIDTEXT|.
 
       if <field> is assigned.
@@ -172,7 +193,7 @@ class zcl_organizational_model implementation.
 
           if lt_found_levels[ lines( lt_found_levels ) - sy-index + 1 ]  is not initial.
 
-            me->get_org_unit_code_and_text(
+            me->zif_organizational_model~get_org_unit_code_and_text(
                                 exporting
                                     ip_org_unit = lt_found_levels[ lines( lt_found_levels ) - sy-index + 1 ]-objid
                                     ip_otype = lt_found_levels[ lines( lt_found_levels ) - sy-index + 1 ]-otype
@@ -219,7 +240,7 @@ class zcl_organizational_model implementation.
   endmethod.
 
 
-  method zif_organizational_model~get_assigned_pos_of_org_unit.
+  method zif_organizational_model~get_assig_pos_of_root_org_unit.
 
     data: lt_child_records_short type crmt_orgman_swhactor_tab,
           lt_child_records       type ty_positions_users_full,
@@ -254,7 +275,7 @@ class zcl_organizational_model implementation.
 
           endif.
 
-          me->get_org_unit_code_and_text(
+          me->zif_organizational_model~get_org_unit_code_and_text(
                        exporting
                            ip_org_unit = ls_position-objid
                            ip_otype = ls_position-otype
@@ -280,7 +301,7 @@ class zcl_organizational_model implementation.
 
           lv_org_unit = <ls_child_record>-objid.
 
-          me->get_bp_of_org_unit(
+          me->zif_organizational_model~get_bp_of_org_unit(
             exporting
               ip_org_unit = lv_org_unit
             receiving
@@ -311,7 +332,7 @@ class zcl_organizational_model implementation.
   endmethod.
 
 
-  method zif_organizational_model~get_subunits_of_org_unit.
+  method zif_organizational_model~get_subunits_of_root_org_unit.
 
     call function 'RH_STRUC_GET'
       exporting
@@ -319,11 +340,60 @@ class zcl_organizational_model implementation.
         act_objid      = mv_root_org_unit
         act_wegid      = 'B002'
       tables
-        result_tab     = rt_sub_units
+        result_tab     = et_sub_units
+        result_struc   = et_sub_units_struc
       exceptions
         no_plvar_found = 1
         no_entry_found = 2
         others         = 3.
 
   endmethod.
+
+  method zif_organizational_model~get_employee_org_unit.
+
+    call function 'RH_STRUC_GET'
+      exporting
+        act_otype      = 'CP'
+        act_objid      = ip_emp_org_unit
+        act_wegid      = 'CP_O'
+      tables
+        result_tab     = rt_org_unit
+      exceptions
+        no_plvar_found = 1
+        no_entry_found = 2
+        others         = 3.
+
+  endmethod.
+
+  method zif_organizational_model~get_upper_units_of_org_unit.
+
+    call function 'RH_STRUC_GET'
+      exporting
+        act_otype      = 'O'
+        act_objid      = ip_org_unit
+        act_wegid      = 'O-O'
+      tables
+        result_tab     = et_upper_units
+        result_struc   = et_upper_units_struc
+      exceptions
+        no_plvar_found = 1
+        no_entry_found = 2
+        others         = 3.
+
+
+
+  endmethod.
+
+  method zif_organizational_model~get_org_unit_of_bp.
+
+    select objid up to 1 rows into ep_org_unit
+        from hrp1001
+        where sobid = ip_bp and
+            sclas = 'BP'
+        order by begda descending.
+
+    endselect.
+
+  endmethod.
+
 endclass.

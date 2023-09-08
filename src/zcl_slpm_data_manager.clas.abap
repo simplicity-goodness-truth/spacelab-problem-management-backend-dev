@@ -146,7 +146,13 @@ class zcl_slpm_data_manager definition
           ip_loio              type sdok_docid
           ip_phio              type sdok_docid
         returning
-          value(rp_visibility) type char1.
+          value(rp_visibility) type char1,
+
+      fill_extra_fields_for_update
+        changing
+          cs_problem type zcrm_order_ts_sl_problem
+        raising
+          zcx_slpm_configuration_exc.
 
 
 endclass.
@@ -502,15 +508,21 @@ class zcl_slpm_data_manager implementation.
   method zif_slpm_data_manager~update_problem.
 
     data:
-      lr_problem          type ref to data.
+      lr_problem type ref to data,
+      ls_problem type zcrm_order_ts_sl_problem.
 
-    get reference of is_problem into lr_problem.
+    ls_problem = is_problem.
+
+    " Filling extra fields before update
+
+    me->fill_extra_fields_for_update( changing cs_problem = ls_problem ).
+
+    get reference of ls_problem into lr_problem.
 
     mo_slpm_problem_api->zif_custom_crm_order_update~update_order(
          exporting
          ir_entity = lr_problem
          ip_guid = ip_guid ).
-
 
     rs_result = me->zif_slpm_data_manager~get_problem( ip_guid ).
 
@@ -597,7 +609,6 @@ class zcl_slpm_data_manager implementation.
             cs_problem-sapsystemdescription = lt_customer_systems[ sapsystemname = cs_problem-sapsystemname ]-description.
             cs_problem-sapsystemrole = lt_customer_systems[ sapsystemname = cs_problem-sapsystemname ]-role.
 
-
           catch cx_sy_itab_line_not_found.
 
         endtry.
@@ -680,6 +691,14 @@ class zcl_slpm_data_manager implementation.
 
     cs_problem-showpriorities = lo_slpm_product->is_show_priority_set(  ).
 
+
+    " Default processing unit
+
+    cs_problem-defaultprocessingorgunit = cond pd_objid_r(
+        when lo_slpm_product->get_processing_org_unit( ) then
+            lo_slpm_product->get_processing_org_unit( )
+        else
+            mo_active_configuration->get_parameter_value( 'PROCESSORS_POOL_ORG_UNIT_NUMBER' ) ).
 
 
   endmethod.
@@ -770,12 +789,15 @@ class zcl_slpm_data_manager implementation.
   method zif_slpm_data_manager~get_list_of_processors.
 
     data:
-      lv_proc_pool_org_unit   type pd_objid_r,
-      lo_organizational_model type ref to zif_organizational_model,
-      ls_processor            type zslpm_ts_user,
-      lv_bp_in_processing     type bu_partner.
+      lv_proc_pool_org_unit        type pd_objid_r,
+      lo_organizational_model      type ref to zif_organizational_model,
+      ls_processor                 type zslpm_ts_user,
+      lv_bp_in_processing          type bu_partner,
+      lv_sup_team_level_in_org_str type int1,
+      lv_sup_team_text_field_name  type name_komp.
 
-
+    field-symbols:
+        <fs_value> type any.
 
     if mt_proc_pool_assigned_pos is initial.
 
@@ -785,7 +807,7 @@ class zcl_slpm_data_manager implementation.
 
         lo_organizational_model = new zcl_organizational_model( lv_proc_pool_org_unit ).
 
-        mt_proc_pool_assigned_pos = lo_organizational_model->get_assigned_pos_of_org_unit( abap_true ).
+        mt_proc_pool_assigned_pos = lo_organizational_model->get_assig_pos_of_root_org_unit( abap_true ).
 
         sort mt_proc_pool_assigned_pos by businesspartner.
 
@@ -796,6 +818,18 @@ class zcl_slpm_data_manager implementation.
 
     if mt_proc_pool_assigned_pos is not initial.
 
+      " Getting a level of support team from a configuration (default level is 2)
+
+      lv_sup_team_level_in_org_str = mo_active_configuration->get_parameter_value( 'SUPPORT_TEAM_LEVEL_IN_ORG_STRUCTURE' ).
+
+      if ( lv_sup_team_level_in_org_str is initial ) or ( lv_sup_team_level_in_org_str eq  0 ).
+
+        lv_sup_team_level_in_org_str = 2.
+
+      endif.
+
+      lv_sup_team_text_field_name = |LEVEL| & |{ lv_sup_team_level_in_org_str }| & |OOBJIDTEXT|.
+
       loop at mt_proc_pool_assigned_pos assigning field-symbol(<ls_proc_pool_assigned_pos>).
 
         if ( lv_bp_in_processing is initial ).
@@ -805,8 +839,21 @@ class zcl_slpm_data_manager implementation.
           ls_processor-username = <ls_proc_pool_assigned_pos>-businesspartner.
           ls_processor-searchtag1 = <ls_proc_pool_assigned_pos>-stext.
 
-          " Assuming, that on level 2 we have a department responsible for processing
-          ls_processor-searchtag2 = <ls_proc_pool_assigned_pos>-level2oobjidtext.
+          " Filling support team
+
+          if <fs_value> is assigned.
+
+            unassign <fs_value>.
+
+          endif.
+
+          assign component lv_sup_team_text_field_name of structure <ls_proc_pool_assigned_pos> to <fs_value>.
+
+          if <fs_value> is assigned.
+
+            ls_processor-searchtag2 = <fs_value>.
+
+          endif.
 
           lv_bp_in_processing = <ls_proc_pool_assigned_pos>-businesspartner.
 
@@ -825,8 +872,21 @@ class zcl_slpm_data_manager implementation.
           ls_processor-username = <ls_proc_pool_assigned_pos>-businesspartner.
           ls_processor-searchtag1 = <ls_proc_pool_assigned_pos>-stext.
 
-          " Assuming, that on level 2 we have a department responsible for processing
-          ls_processor-searchtag2 = <ls_proc_pool_assigned_pos>-level2oobjidtext.
+          " Filling support team
+
+          if <fs_value> is assigned.
+
+            unassign <fs_value>.
+
+          endif.
+
+          assign component lv_sup_team_text_field_name of structure <ls_proc_pool_assigned_pos> to <fs_value>.
+
+          if <fs_value> is assigned.
+
+            ls_processor-searchtag2 = <fs_value>.
+
+          endif.
 
           lv_bp_in_processing = <ls_proc_pool_assigned_pos>-businesspartner.
 
@@ -1353,6 +1413,113 @@ class zcl_slpm_data_manager implementation.
           where guid = ip_guid and
           loio_id = ip_loio and
           phio_id = ip_phio.
+
+  endmethod.
+
+  method zif_slpm_data_manager~get_list_of_support_teams.
+
+    data:
+      lt_support_team_org_units    type table of pd_objid_r,
+      wa_support_team              type zslpm_ts_support_team,
+      lo_organizational_model      type ref to zif_organizational_model,
+      lv_org_unit_short_name       type short_d,
+      lv_org_unit_text             type stext,
+      lv_sup_team_level_in_org_str type int1,
+      lt_proc_pool_sub_units       type crmt_orgman_swhactor_tab,
+      lt_proc_pool_sub_units_struc type zif_organizational_model=>ty_sub_units_struc.
+
+
+*    select processingorgunit into table lt_support_team_org_units
+*        from zslpm_prod_attr.
+*
+*    sort lt_support_team_org_units.
+*
+*    delete adjacent duplicates from lt_support_team_org_units.
+*
+*    lo_organizational_model = new zcl_organizational_model( ).
+*
+*    loop at lt_support_team_org_units assigning field-symbol(<ls_support_team_org_unit>).
+*
+*      wa_support_team-orgunitnumber = <ls_support_team_org_unit>.
+*
+*      wa_support_team-businesspartner = lo_organizational_model->get_bp_of_org_unit( <ls_support_team_org_unit> ).
+*
+*      lo_organizational_model->get_org_unit_code_and_text(
+*             exporting
+*                 ip_org_unit = <ls_support_team_org_unit>
+*                 ip_otype = 'O'
+*             importing
+*                 ep_org_unit_code = lv_org_unit_short_name
+*                 ep_org_unit_text = lv_org_unit_text ).
+*
+*      wa_support_team-name = lv_org_unit_text.
+*
+*      append wa_support_team to rt_support_teams.
+*
+*    endloop.
+
+    " Getting a level of support team from a configuration (default level is 2)
+
+    lv_sup_team_level_in_org_str = mo_active_configuration->get_parameter_value( 'SUPPORT_TEAM_LEVEL_IN_ORG_STRUCTURE' ).
+
+    if ( lv_sup_team_level_in_org_str is initial ) or ( lv_sup_team_level_in_org_str eq  0 ).
+
+      lv_sup_team_level_in_org_str = 2.
+
+    endif.
+
+    lo_organizational_model = new zcl_organizational_model(  me->get_processors_pool_org_unit( ) ).
+
+    lo_organizational_model->get_subunits_of_root_org_unit(
+        importing
+            et_sub_units = lt_proc_pool_sub_units
+            et_sub_units_struc = lt_proc_pool_sub_units_struc ).
+
+    loop at lt_proc_pool_sub_units_struc assigning field-symbol(<ls_proc_pool_sub_units_struc>)
+        where level eq lv_sup_team_level_in_org_str.
+
+      append <ls_proc_pool_sub_units_struc>-objid to lt_support_team_org_units.
+
+    endloop.
+
+
+    loop at lt_support_team_org_units assigning field-symbol(<ls_support_team_org_unit>).
+
+      wa_support_team-orgunitnumber = <ls_support_team_org_unit>.
+
+      wa_support_team-businesspartner = lo_organizational_model->get_bp_of_org_unit( <ls_support_team_org_unit> ).
+
+      lo_organizational_model->get_org_unit_code_and_text(
+             exporting
+                 ip_org_unit = <ls_support_team_org_unit>
+                 ip_otype = 'O'
+             importing
+                 ep_org_unit_code = lv_org_unit_short_name
+                 ep_org_unit_text = lv_org_unit_text ).
+
+      wa_support_team-name = lv_org_unit_text.
+
+      append wa_support_team to rt_support_teams.
+
+    endloop.
+
+  endmethod.
+
+  method fill_extra_fields_for_update.
+
+    data:
+          lo_problem_processor type ref to zif_slpm_problem_processor.
+
+
+    " Setting Support Team
+
+    if cs_problem-processorbusinesspartner is not initial.
+
+      lo_problem_processor = new zcl_slpm_problem_processor( cs_problem-processorbusinesspartner ).
+
+      cs_problem-supportteambusinesspartner = lo_problem_processor->get_support_team_bp( ).
+
+    endif.
 
   endmethod.
 

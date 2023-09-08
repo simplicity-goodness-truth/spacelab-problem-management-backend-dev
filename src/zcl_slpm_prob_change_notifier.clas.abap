@@ -581,7 +581,7 @@ class zcl_slpm_prob_change_notifier implementation.
 
       lo_organizational_model = new zcl_organizational_model( lv_team_to_inform ).
 
-      lt_proc_pool_assigned_pos = lo_organizational_model->get_assigned_pos_of_org_unit(  ).
+      lt_proc_pool_assigned_pos = lo_organizational_model->get_assig_pos_of_root_org_unit(  ).
 
       loop at lt_proc_pool_assigned_pos assigning field-symbol(<ls_proc_pool_assigned_pos>).
 

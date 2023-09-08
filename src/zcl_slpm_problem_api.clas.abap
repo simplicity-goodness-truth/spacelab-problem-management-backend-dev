@@ -58,9 +58,9 @@ class zcl_slpm_problem_api implementation.
 
     " Sold-to-party
 
-    lv_sold_to_party = io_active_configuration->get_parameter_value( 'DEFAULT_SOLD_TO_PARTY' ).
-
-    zif_custom_crm_order_init~set_sold_to_party( lv_sold_to_party ).
+*    lv_sold_to_party = io_active_configuration->get_parameter_value( 'DEFAULT_SOLD_TO_PARTY' ).
+*
+*    zif_custom_crm_order_init~set_sold_to_party( lv_sold_to_party ).
 
   endmethod.
 

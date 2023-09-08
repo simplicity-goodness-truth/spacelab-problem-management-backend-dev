@@ -216,6 +216,10 @@ class zcl_custom_crm_order_api implementation.
 
             es_result-supportteambusinesspartner = lv_bp_num.
 
+            " Get Support Team name
+
+            es_result-supportteamname = new zcl_bp_master_data( lv_bp_num )->zif_contacts_book~get_full_name(  ).
+
         endcase. " case ls_partner-ref_partner_fct
 
       endloop. " loop at et_partner into ls_partner

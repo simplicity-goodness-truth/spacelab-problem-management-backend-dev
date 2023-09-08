@@ -49,10 +49,20 @@ class zcl_bp_master_data implementation.
 
     endif.
 
+*    rp_full_name = cond #(
+*          when ms_but000-name1_text is not initial then ms_but000-name1_text
+*          else |{ ms_but000-name_first }| && | | && |{ ms_but000-name_last }|
+*        ).
+
+
     rp_full_name = cond #(
-          when ms_but000-name1_text is not initial then ms_but000-name1_text
-          else |{ ms_but000-name_first }| && | | && |{ ms_but000-name_last }|
-        ).
+        when ms_but000-type eq '1' then cond #(
+            when ms_but000-name1_text is not initial then ms_but000-name1_text
+            else |{ ms_but000-name_first }| && | | && |{ ms_but000-name_last }|
+        )
+        when ms_but000-type eq '2' then ms_but000-name_org2
+    ).
+
 
   endmethod.
 

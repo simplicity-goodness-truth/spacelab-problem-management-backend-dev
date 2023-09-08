@@ -70,10 +70,10 @@ interface zif_slpm_data_manager
 
     create_attachment
       importing
-        ip_guid      type crmt_object_guid
-        ip_file_name type string
-        ip_mime_type type string
-        ip_content   type xstring
+        ip_guid       type crmt_object_guid
+        ip_file_name  type string
+        ip_mime_type  type string
+        ip_content    type xstring
         ip_visibility type char1 optional
       raising
         zcx_slpm_configuration_exc
@@ -219,6 +219,12 @@ interface zif_slpm_data_manager
         ip_seconds_in_processing type integer
         ip_created_at_user_tzone type comt_created_at_usr
       changing
-        cs_problem               type zcrm_order_ts_sl_problem.
+        cs_problem               type zcrm_order_ts_sl_problem,
+
+    get_list_of_support_teams
+      returning
+        value(rt_support_teams) type zslpm_tt_support_teams
+      raising
+        zcx_slpm_configuration_exc.
 
 endinterface.
