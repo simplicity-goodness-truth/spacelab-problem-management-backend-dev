@@ -637,7 +637,8 @@ class zcl_custom_crm_order_sla_escal implementation.
 
   method zif_custom_crm_order_sla_escal~clear_escal_log.
 
-    delete from zcrmo_sla_esclog.
+    delete from zcrmo_sla_esclog
+        where processtype = ip_process_type.
 
   endmethod.
 

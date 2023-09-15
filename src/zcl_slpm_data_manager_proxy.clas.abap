@@ -181,10 +181,15 @@ class zcl_slpm_data_manager_proxy definition
           is_problem_creation_payload type zcrm_order_ts_sl_problem
           is_problem_resulting_data   type zcrm_order_ts_sl_problem
         returning
-          value(rs_problem)           type zcrm_order_ts_sl_problem.
+          value(rs_problem)           type zcrm_order_ts_sl_problem,
+
+      adjust_sla_in_new_problem
+        changing
+          cs_problem type zcrm_order_ts_sl_problem.
 
 
 endclass.
+
 
 
 class zcl_slpm_data_manager_proxy implementation.
@@ -203,6 +208,33 @@ class zcl_slpm_data_manager_proxy implementation.
     " ------Use approach below if a dedicated problem cache interface ZIF_SLPM_PROBLEM_CACHE is used
 
     mo_slpm_cache_controller->add_record( is_problem ).
+
+  endmethod.
+
+
+  method adjust_product_in_new_problem.
+
+    " For some reason sometimes when a new problem is created
+    " CL_AGS_CRM_1O_API method GET_SERVICE_PRODUCTS returns a default
+    " product data instead of a custom one. That is why we need to force
+    " an adjustment
+
+
+    data lo_crm_product type ref to zif_crm_product.
+
+
+    if ( is_problem_creation_payload-productguid ne is_problem_resulting_data-productguid ).
+
+      move-corresponding is_problem_resulting_data to rs_problem.
+
+      rs_problem-productguid = is_problem_creation_payload-productguid.
+      rs_problem-productname = is_problem_creation_payload-productname.
+
+      lo_crm_product = new zcl_crm_product( is_problem_creation_payload-productguid ).
+
+      rs_problem-producttext = lo_crm_product->get_name(  ).
+
+    endif.
 
   endmethod.
 
@@ -245,6 +277,135 @@ class zcl_slpm_data_manager_proxy implementation.
       endif.
 
     endselect.
+
+  endmethod.
+
+
+  method adjust_sla_in_new_problem.
+
+    data:
+
+      lo_slpm_product           type ref to zif_crm_service_product,
+      lt_response_profile_table type crmt_escal_recno_tab,
+      lv_srv_rf_dura            type timedura,
+      lv_srv_rf_unit            type timeunitdu,
+      lv_srv_rr_dura            type timedura,
+      lv_srv_rr_unit            type timeunitdu,
+      lv_srv_rf_dura_sec        type int4,
+      lv_srv_rr_dura_sec        type int4,
+      lv_srv_rf_dura_time_unit  type int4,
+      lv_srv_rr_dura_time_unit  type int4,
+      lv_avail_profile_name     type char258,
+      lo_serv_profile           type ref to zif_serv_profile,
+      lv_time                   type sy-uzeit,
+      lv_date                   type sy-datum,
+      lv_creation_time          type sy-uzeit,
+      lv_creation_date          type sy-datum,
+      lv_system_timezone        type timezone,
+      lv_new_irt_timestamp      type timestamp,
+      lv_new_mpt_timestamp      type timestamp,
+      lv_new_irt_timestamp_utc  type timestamp,
+      lv_new_mpt_timestamp_utc  type timestamp.
+
+
+    lo_slpm_product           = new zcl_crm_service_product( cs_problem-productguid ).
+
+    lv_avail_profile_name = lo_slpm_product->get_availability_profile_name(  ).
+
+    lt_response_profile_table = lo_slpm_product->get_resp_profile_table( ).
+
+    try.
+
+        lv_srv_rf_dura = lt_response_profile_table[ srv_priority = cs_problem-priority srv_duraname = 'SRV_RF_DURA' ]-srv_dura.
+        lv_srv_rr_dura = lt_response_profile_table[ srv_priority = cs_problem-priority srv_duraname = 'SRV_RR_DURA' ]-srv_dura.
+        lv_srv_rf_unit = lt_response_profile_table[ srv_priority = cs_problem-priority srv_duraname = 'SRV_RF_DURA' ]-srv_unit.
+        lv_srv_rr_unit = lt_response_profile_table[ srv_priority = cs_problem-priority srv_duraname = 'SRV_RR_DURA' ]-srv_unit.
+
+        lv_srv_rf_dura_time_unit  = lv_srv_rf_dura.
+
+        lv_srv_rf_dura_sec = zcl_assistant_utilities=>convert_time_to_seconds(
+            exporting
+                ip_amount_in_input_time_unit = lv_srv_rf_dura_time_unit
+                ip_input_time_unit = lv_srv_rf_unit
+        ).
+
+        lv_srv_rr_dura_time_unit  = lv_srv_rr_dura.
+
+        lv_srv_rr_dura_sec = zcl_assistant_utilities=>convert_time_to_seconds(
+            exporting
+                ip_amount_in_input_time_unit = lv_srv_rr_dura_time_unit
+                ip_input_time_unit = lv_srv_rr_unit
+        ).
+
+
+        lv_system_timezone =  zcl_assistant_utilities=>get_system_timezone(  ).
+
+
+        zcl_assistant_utilities=>get_date_time_from_timestamp(
+                  exporting
+                      ip_timestamp = cs_problem-created_at
+                  importing
+                      ep_date = lv_creation_date
+                      ep_time = lv_creation_time ).
+
+        lo_serv_profile = new zcl_serv_profile( lv_avail_profile_name  ).
+
+        if lv_srv_rf_dura_sec is not initial.
+
+          lo_serv_profile->add_seconds_to_date(
+            exporting
+                ip_added_seconds_total = lv_srv_rf_dura_sec
+                ip_date_from = lv_creation_date
+                ip_time_from = lv_creation_time
+            importing
+                ep_sla_date = lv_date
+                ep_sla_time = lv_time ).
+
+          convert date lv_date time lv_time into time stamp lv_new_irt_timestamp time zone lv_system_timezone.
+
+          cs_problem-irt_timestamp = lv_new_irt_timestamp.
+          cs_problem-irt_timestamp_utc = zcl_assistant_utilities=>convert_timestamp_to_timezone(
+            exporting
+                ip_timestamp = lv_new_irt_timestamp
+                ip_timezone = 'UTC' ).
+
+          cs_problem-irt_duration = lv_srv_rf_dura.
+          cs_problem-irt_dura_unit = lv_srv_rf_unit.
+
+          clear:  lv_time, lv_date.
+
+        endif.
+
+
+        if lv_srv_rr_dura_sec is not initial.
+
+          lo_serv_profile->add_seconds_to_date(
+                    exporting
+                      ip_added_seconds_total = lv_srv_rr_dura_sec
+                      ip_date_from = lv_creation_date
+                      ip_time_from = lv_creation_time
+                  importing
+                      ep_sla_date = lv_date
+                      ep_sla_time = lv_time ).
+
+          convert date lv_date time lv_time into time stamp lv_new_mpt_timestamp time zone lv_system_timezone.
+
+          cs_problem-mpt_timestamp = lv_new_mpt_timestamp.
+          cs_problem-mpt_timestamp_utc = zcl_assistant_utilities=>convert_timestamp_to_timezone(
+            exporting
+                ip_timestamp = lv_new_mpt_timestamp
+                ip_timezone = 'UTC' ).
+
+          cs_problem-mpt_duration = lv_srv_rr_dura.
+          cs_problem-mpt_dura_unit = lv_srv_rr_unit.
+
+          clear:  lv_time, lv_date.
+
+        endif.
+
+      catch cx_sy_itab_line_not_found.
+
+    endtry.
 
   endmethod.
 
@@ -409,6 +570,36 @@ class zcl_slpm_data_manager_proxy implementation.
       catch cx_sy_itab_line_not_found.
 
     endtry.
+
+
+  endmethod.
+
+
+  method invalidate_problem_in_cache.
+
+    mo_slpm_cache_controller->invalidate_record( ip_guid ).
+
+  endmethod.
+
+
+  method notify_observers_on_att_remove.
+
+    loop at mt_problem_observers assigning field-symbol(<ms_observer>).
+
+      <ms_observer>->attachment_removed( ip_file_name = ip_file_name ).
+
+    endloop.
+
+  endmethod.
+
+
+  method notify_observers_on_att_upload.
+
+    loop at mt_problem_observers assigning field-symbol(<ms_observer>).
+
+      <ms_observer>->attachment_uploaded( ip_file_name = ip_file_name ).
+
+    endloop.
 
 
   endmethod.
@@ -673,6 +864,23 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method put_att_to_trash_bin.
+
+    data lo_custom_crm_order_trash_bin type ref to zif_custom_crm_order_att_trash.
+
+    lo_custom_crm_order_trash_bin = new zcl_custom_crm_order_att_trash(
+        ip_guid = ip_guid
+        ip_process_type = 'ZSLP'
+        ).
+
+    lo_custom_crm_order_trash_bin->put_att_to_trash_bin(
+        ip_content = ip_content
+        ip_file_name = ip_file_name
+        ip_mime_type = ip_mime_type ).
+
+  endmethod.
+
+
   method recalc_irt_sla.
 
     data:lv_difference_in_seconds      type integer,
@@ -879,6 +1087,23 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method zif_slpm_data_manager~calc_non_stand_sla_status.
+
+    if mo_slpm_data_provider is bound.
+
+      mo_slpm_data_provider->calc_non_stand_sla_status(
+        exporting
+            ip_seconds_in_processing = ip_seconds_in_processing
+            ip_created_at_user_tzone = ip_created_at_user_tzone
+        changing
+            cs_problem = cs_problem ).
+
+    endif.
+
+
+  endmethod.
+
+
   method zif_slpm_data_manager~create_attachment.
 
     if mo_slpm_data_provider is bound.
@@ -985,6 +1210,13 @@ class zcl_slpm_data_manager_proxy implementation.
 
       endtry.
 
+      " Due to a some reason after we force an update of CRMD_ORDERADM_I to set a new product during a
+      " creation sequence in CRM order API the same API does not return a proper new product and corresponding
+      " SLA recalculations, and correct values appear only after we do a next call from DPC_EXT class
+      " (commit work or any other tricks do not help). To keep a correct product and SLA information in
+      " all observers, we need to perform an adjustment below.
+      " All above is related to a creation sequence only, for updates everything is fine.
+
       " Adjusting product in a new problem
 
       rs_result =  me->adjust_product_in_new_problem(
@@ -992,6 +1224,12 @@ class zcl_slpm_data_manager_proxy implementation.
          is_problem_creation_payload = is_problem
          is_problem_resulting_data = rs_result
          ).
+
+      " Adjusting SLAs in new problem
+
+      me->adjust_sla_in_new_problem(
+         changing
+         cs_problem = rs_result ).
 
       " Adding a change notifier observer for created problem
 
@@ -1104,6 +1342,21 @@ class zcl_slpm_data_manager_proxy implementation.
                ip_guid = ip_guid
                ip_loio = ip_loio
                ip_phio = ip_phio ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~fill_cached_prb_calc_flds.
+
+    if mo_slpm_data_provider is bound.
+
+      mo_slpm_data_provider->fill_cached_prb_calc_flds(
+        exporting
+            ip_guid = ip_guid
+        changing
+            cs_problem = cs_problem ).
 
     endif.
 
@@ -1223,6 +1476,17 @@ class zcl_slpm_data_manager_proxy implementation.
     if mo_slpm_data_provider is bound.
 
       rt_processors = mo_slpm_data_provider->get_list_of_processors(  ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_list_of_support_teams.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_support_teams = mo_slpm_data_provider->get_list_of_support_teams(  ).
 
     endif.
 
@@ -1417,115 +1681,4 @@ class zcl_slpm_data_manager_proxy implementation.
     endif.
 
   endmethod.
-
-  method invalidate_problem_in_cache.
-
-    mo_slpm_cache_controller->invalidate_record( ip_guid ).
-
-  endmethod.
-
-
-  method zif_slpm_data_manager~fill_cached_prb_calc_flds.
-
-    if mo_slpm_data_provider is bound.
-
-      mo_slpm_data_provider->fill_cached_prb_calc_flds(
-        exporting
-            ip_guid = ip_guid
-        changing
-            cs_problem = cs_problem ).
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~calc_non_stand_sla_status.
-
-    if mo_slpm_data_provider is bound.
-
-      mo_slpm_data_provider->calc_non_stand_sla_status(
-        exporting
-            ip_seconds_in_processing = ip_seconds_in_processing
-            ip_created_at_user_tzone = ip_created_at_user_tzone
-        changing
-            cs_problem = cs_problem ).
-
-    endif.
-
-
-  endmethod.
-
-  method notify_observers_on_att_upload.
-
-    loop at mt_problem_observers assigning field-symbol(<ms_observer>).
-
-      <ms_observer>->attachment_uploaded( ip_file_name = ip_file_name ).
-
-    endloop.
-
-
-  endmethod.
-
-  method notify_observers_on_att_remove.
-
-    loop at mt_problem_observers assigning field-symbol(<ms_observer>).
-
-      <ms_observer>->attachment_removed( ip_file_name = ip_file_name ).
-
-    endloop.
-
-  endmethod.
-
-  method put_att_to_trash_bin.
-
-    data lo_custom_crm_order_trash_bin type ref to zif_custom_crm_order_att_trash.
-
-    lo_custom_crm_order_trash_bin = new zcl_custom_crm_order_att_trash(
-        ip_guid = ip_guid
-        ip_process_type = 'ZSLP'
-        ).
-
-    lo_custom_crm_order_trash_bin->put_att_to_trash_bin(
-        ip_content = ip_content
-        ip_file_name = ip_file_name
-        ip_mime_type = ip_mime_type ).
-
-  endmethod.
-
-  method adjust_product_in_new_problem.
-
-    " For some reason sometimes when a new problem is created
-    " CL_AGS_CRM_1O_API method GET_SERVICE_PRODUCTS returns a default
-    " product data instead of a custom one. That is why we need to force
-    " an adjustment
-
-
-    data lo_crm_product type ref to zif_crm_product.
-
-
-    if ( is_problem_creation_payload-productguid ne is_problem_resulting_data-productguid ).
-
-      move-corresponding is_problem_resulting_data to rs_problem.
-
-      rs_problem-productguid = is_problem_creation_payload-productguid.
-      rs_problem-productname = is_problem_creation_payload-productname.
-
-      lo_crm_product = new zcl_crm_product( is_problem_creation_payload-productguid ).
-
-      rs_problem-producttext = lo_crm_product->get_name(  ).
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~get_list_of_support_teams.
-
-    if mo_slpm_data_provider is bound.
-
-      rt_support_teams = mo_slpm_data_provider->get_list_of_support_teams(  ).
-
-    endif.
-
-  endmethod.
-
 endclass.

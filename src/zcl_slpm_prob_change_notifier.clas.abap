@@ -471,12 +471,20 @@ class zcl_slpm_prob_change_notifier implementation.
              internal    type char1,
            end of ty_fields_to_fill.
 
+    types: begin of ty_fields_to_replace,
+             input_name  type name_komp,
+             output_name type name_komp,
+           end of ty_fields_to_replace.
 
-    data: lt_fields_to_fill type table of ty_fields_to_fill,
-          lo_structure_ref  type ref to data,
-          lr_entity         type ref to data,
-          lo_descr_ref      type ref to cl_abap_typedescr,
-          lv_text_token     type string.
+
+    data: lt_fields_to_fill       type table of ty_fields_to_fill,
+          lt_fields_to_replace    type table of ty_fields_to_replace,
+          lo_structure_ref        type ref to data,
+          lr_entity               type ref to data,
+          lo_descr_ref            type ref to cl_abap_typedescr,
+          lv_text_token           type string,
+          lv_structure_field_name type name_komp.
+
 
 
     field-symbols: <fs_structure> type any,
@@ -496,6 +504,13 @@ class zcl_slpm_prob_change_notifier implementation.
         ( name = 'COMPANYNAME' translation = 'Компания автора' internal = 'X' )
     ).
 
+    lt_fields_to_replace = value #(
+
+       ( input_name = 'IRT_TIMESTAMP' output_name = 'IRT_TIMESTAMP_UTC' )
+       ( input_name = 'MPT_TIMESTAMP' output_name = 'MPT_TIMESTAMP_UTC' )
+
+       ).
+
     get reference of ms_problem_new_state into lr_entity.
 
     if ( lr_entity is bound ).
@@ -512,9 +527,22 @@ class zcl_slpm_prob_change_notifier implementation.
         unassign <fs_value>.
       endif.
 
-      clear lv_text_token.
+      clear: lv_text_token,
+             lv_structure_field_name.
 
-      assign component <ls_field>-name of structure <fs_structure> to <fs_value>.
+      try.
+
+          lv_structure_field_name = lt_fields_to_replace[ input_name = <ls_field>-name ]-output_name.
+
+        catch cx_sy_itab_line_not_found.
+
+          lv_structure_field_name = <ls_field>-name.
+
+      endtry.
+
+      " assign component <ls_field>-name of structure <fs_structure> to <fs_value>.
+
+      assign component lv_structure_field_name of structure <fs_structure> to <fs_value>.
 
       if ( <fs_value> is assigned ) and ( <fs_value> is not initial ).
 

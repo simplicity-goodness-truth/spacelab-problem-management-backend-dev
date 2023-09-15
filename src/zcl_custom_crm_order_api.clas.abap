@@ -149,6 +149,10 @@ class zcl_custom_crm_order_api implementation.
       lt_appointments          type crmt_appointment_wrkt,
       ls_appointment           type crmt_appointment_wrk.
 
+
+
+
+
     " Getting request instance
 
     call method cl_ags_crm_1o_api=>get_instance
@@ -613,7 +617,9 @@ class zcl_custom_crm_order_api implementation.
 
 
 
-    lo_cl_ags_crm_1o_api->get_service_products( importing et_orderadm_i = data(lt_product_data) ).
+
+
+  "  lo_cl_ags_crm_1o_api->get_service_products( importing et_orderadm_i = data(lt_product_data) ).
 
 
 
@@ -900,6 +906,8 @@ class zcl_custom_crm_order_api implementation.
 
     endif. " if ( mv_custom_fields_db_table eq 'CRMD_CUSTOMER_H' )
 
+
+
     " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
     "   Saving document
     " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
@@ -920,7 +928,6 @@ class zcl_custom_crm_order_api implementation.
 
     endif. " if ( sy-subrc <> 0 )
 
-
     " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
     "   Setting Posting Date
     " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
@@ -938,7 +945,6 @@ class zcl_custom_crm_order_api implementation.
       update crmd_orderadm_h set posting_date = lv_posting_date where guid = lv_guid.
 
     endif. " if er_entity-priority is not initial
-
 
     " ~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~^~~^~^~^~^~^~^~^~^
     "   Product
@@ -977,6 +983,7 @@ class zcl_custom_crm_order_api implementation.
               description = lv_product_name
               description_uc = lv_product_name
           where header = lv_guid.
+
 
         endif.
 
@@ -1021,8 +1028,6 @@ class zcl_custom_crm_order_api implementation.
       ep_guid = lv_guid.
 
     endif.
-
-
 
   endmethod.
 
@@ -2198,17 +2203,18 @@ class zcl_custom_crm_order_api implementation.
 
   method zif_custom_crm_order_organizer~is_order_matching_to_filters.
 
-    data: lt_filter_sel_opt      type /iwbep/t_cod_select_options,
-          ls_filter_sel_opt      like line of lt_filter_sel_opt,
-          ls_bp_filter_sel_opt   like line of lt_filter_sel_opt,
-          lo_structure_ref       type ref to data,
-          lo_descr_ref           type ref to cl_abap_typedescr,
-          lv_bp_number           type bu_partner,
-          lo_bp_master_data      type ref to zif_bp_master_data,
-          lv_free_text           type  string,
-          lt_texts               type cl_ai_crm_gw_mymessage_mpc=>tt_text,
-          lv_text_contain_string type abap_bool,
-          lv_text_to_analyze     type string.
+    data: lt_filter_sel_opt        type /iwbep/t_cod_select_options,
+          ls_filter_sel_opt        like line of lt_filter_sel_opt,
+          ls_bp_filter_sel_opt     like line of lt_filter_sel_opt,
+          lo_structure_ref         type ref to data,
+          lo_descr_ref             type ref to cl_abap_typedescr,
+          lv_bp_number             type bu_partner,
+          lo_bp_master_data        type ref to zif_bp_master_data,
+          lv_free_text             type  string,
+          lt_texts                 type cl_ai_crm_gw_mymessage_mpc=>tt_text,
+          lv_text_contain_string   type abap_bool,
+          lv_text_to_analyze       type string,
+          lv_description_to_search type string.
 
     field-symbols: <fs_structure> type any,
                    <fs_value>     type any.
@@ -2229,133 +2235,157 @@ class zcl_custom_crm_order_api implementation.
 
     loop at it_set_filters assigning field-symbol(<ls_set_filters>).
 
-      if <ls_set_filters>-property ne 'NOTE'.
+      case <ls_set_filters>-property.
 
-        assign component <ls_set_filters>-property of structure <fs_structure> to <fs_value>.
+        when 'NOTE'.
 
-        if ( sy-subrc eq 0 ).
+          " Free text search
 
-          clear: lt_filter_sel_opt,
-          ls_filter_sel_opt.
+          lv_free_text = <ls_set_filters>-select_options[ 1 ]-low.
 
-          lo_descr_ref = cl_abap_typedescr=>describe_by_data( <fs_value> ).
+          if <fs_value> is assigned.
+            unassign <fs_value>.
+          endif.
 
-          " Special cases for various types
+          assign component 'GUID' of structure <fs_structure> to <fs_value>.
 
-          case lo_descr_ref->absolute_name.
+          me->get_texts(
+              exporting
+                  ip_guid = <fs_value>
+              importing
+                  et_texts = lt_texts ).
 
-            when '\TYPE=BU_PARTNER'.
+          loop at lt_texts assigning field-symbol(<ls_text>).
 
-              " If we have Business Partners for filtering, we need to add leading zeroes
-              " to LOW and HIGH values of filter
-              " In addition we have to add leading zeroes for structure value to keep filter and value
-              " in a same format of BU_PARTNER with leading zeroes
+            lv_text_contain_string = abap_false.
 
-              clear: ls_filter_sel_opt, lv_bp_number, lo_bp_master_data, ls_bp_filter_sel_opt.
+            lv_text_to_analyze = <ls_text>-text.
 
-              loop at <ls_set_filters>-select_options assigning field-symbol(<sel_option>).
+            " Removing HTML tags
 
-                ls_filter_sel_opt =  <sel_option>.
+            zcl_assistant_utilities=>remove_html_tags(
+              changing
+                  cs_string = lv_text_to_analyze ).
 
-                ls_bp_filter_sel_opt-option = ls_filter_sel_opt-option.
-                ls_bp_filter_sel_opt-sign = ls_filter_sel_opt-sign.
+            if lv_text_to_analyze cs lv_free_text.
 
-                if ls_filter_sel_opt-low is not initial.
-                  lv_bp_number = ls_filter_sel_opt-low.
-                  lo_bp_master_data  = new zcl_bp_master_data( lv_bp_number ).
-                  ls_bp_filter_sel_opt-low = lo_bp_master_data->get_bp_number( ).
+              lv_text_contain_string = abap_true.
+              exit.
 
-                endif.
+            endif.
 
-                clear: lv_bp_number, lo_bp_master_data.
+          endloop.
 
-                if ls_filter_sel_opt-high is not initial.
+          if lv_text_contain_string eq abap_false.
 
-                  lv_bp_number = ls_filter_sel_opt-high.
-                  lo_bp_master_data  = new zcl_bp_master_data( lv_bp_number ).
-                  ls_bp_filter_sel_opt-high = lo_bp_master_data->get_bp_number( ).
-
-                endif.
-
-                append ls_bp_filter_sel_opt to lt_filter_sel_opt.
-
-              endloop.
-
-              lv_bp_number = <fs_value>.
-              lo_bp_master_data  = new zcl_bp_master_data( lv_bp_number ).
-              lv_bp_number = lo_bp_master_data->get_bp_number( ).
-
-              if ( lt_filter_sel_opt is not initial ) and (  lv_bp_number not in lt_filter_sel_opt ).
-
-                cp_include_record = abap_false.
-                exit.
-
-              endif.
-
-            when others.
-
-              lt_filter_sel_opt = <ls_set_filters>-select_options.
-
-              if ( lt_filter_sel_opt is not initial ) and (  <fs_value> not in lt_filter_sel_opt ).
-
-                cp_include_record = abap_false.
-                exit.
-
-              endif.
-
-          endcase.
-
-        endif. " if ( sy-subrc eq 0 ) and ( <fs_value> is not initial )
-
-      else.
-
-        " Free text search
-
-        lv_free_text = <ls_set_filters>-select_options[ 1 ]-low.
-
-        if <fs_value> is assigned.
-          unassign <fs_value>.
-        endif.
-
-        assign component 'GUID' of structure <fs_structure> to <fs_value>.
-
-        me->get_texts(
-            exporting
-                ip_guid = <fs_value>
-            importing
-                et_texts = lt_texts ).
-
-        loop at lt_texts assigning field-symbol(<ls_text>).
-
-          lv_text_contain_string = abap_false.
-
-          lv_text_to_analyze = <ls_text>-text.
-
-          " Removing HTML tags
-
-          zcl_assistant_utilities=>remove_html_tags(
-            changing
-                cs_string = lv_text_to_analyze ).
-
-          if lv_text_to_analyze cs lv_free_text.
-
-            lv_text_contain_string = abap_true.
+            cp_include_record = abap_false.
             exit.
 
           endif.
 
-        endloop.
+        when 'DESCRIPTION'.
 
-        if lv_text_contain_string eq abap_false.
+          lv_description_to_search = <ls_set_filters>-select_options[ 1 ]-low.
 
-          cp_include_record = abap_false.
-          exit.
+          if <fs_value> is assigned.
+            unassign <fs_value>.
+          endif.
 
-        endif.
+          assign component 'DESCRIPTION' of structure <fs_structure> to <fs_value>.
 
-      endif.
+          if <fs_value> ns lv_description_to_search.
 
-    endloop. " loop at it_set_filters ASSIGNING FIELD-SYMBOL(<ls_set_filters>)
+            cp_include_record = abap_false.
+            exit.
+
+          endif.
+
+
+        when others.
+
+          if <fs_value> is assigned.
+            unassign <fs_value>.
+          endif.
+
+          assign component <ls_set_filters>-property of structure <fs_structure> to <fs_value>.
+
+          if ( sy-subrc eq 0 ).
+
+            clear: lt_filter_sel_opt,
+            ls_filter_sel_opt.
+
+            lo_descr_ref = cl_abap_typedescr=>describe_by_data( <fs_value> ).
+
+            " Special cases for various types
+
+            case lo_descr_ref->absolute_name.
+
+              when '\TYPE=BU_PARTNER'.
+
+                " If we have Business Partners for filtering, we need to add leading zeroes
+                " to LOW and HIGH values of filter
+                " In addition we have to add leading zeroes for structure value to keep filter and value
+                " in a same format of BU_PARTNER with leading zeroes
+
+                clear: ls_filter_sel_opt, lv_bp_number, lo_bp_master_data, ls_bp_filter_sel_opt.
+
+                loop at <ls_set_filters>-select_options assigning field-symbol(<sel_option>).
+
+                  ls_filter_sel_opt =  <sel_option>.
+
+                  ls_bp_filter_sel_opt-option = ls_filter_sel_opt-option.
+                  ls_bp_filter_sel_opt-sign = ls_filter_sel_opt-sign.
+
+                  if ls_filter_sel_opt-low is not initial.
+                    lv_bp_number = ls_filter_sel_opt-low.
+                    lo_bp_master_data  = new zcl_bp_master_data( lv_bp_number ).
+                    ls_bp_filter_sel_opt-low = lo_bp_master_data->get_bp_number( ).
+
+                  endif.
+
+                  clear: lv_bp_number, lo_bp_master_data.
+
+                  if ls_filter_sel_opt-high is not initial.
+
+                    lv_bp_number = ls_filter_sel_opt-high.
+                    lo_bp_master_data  = new zcl_bp_master_data( lv_bp_number ).
+                    ls_bp_filter_sel_opt-high = lo_bp_master_data->get_bp_number( ).
+
+                  endif.
+
+                  append ls_bp_filter_sel_opt to lt_filter_sel_opt.
+
+                endloop.
+
+                lv_bp_number = <fs_value>.
+                lo_bp_master_data  = new zcl_bp_master_data( lv_bp_number ).
+                lv_bp_number = lo_bp_master_data->get_bp_number( ).
+
+                if ( lt_filter_sel_opt is not initial ) and (  lv_bp_number not in lt_filter_sel_opt ).
+
+                  cp_include_record = abap_false.
+                  exit.
+
+                endif.
+
+              when others.
+
+                lt_filter_sel_opt = <ls_set_filters>-select_options.
+
+                if ( lt_filter_sel_opt is not initial ) and (  <fs_value> not in lt_filter_sel_opt ).
+
+                  cp_include_record = abap_false.
+                  exit.
+
+                endif.
+
+            endcase.
+
+          endif. " if ( sy-subrc eq 0 ) and ( <fs_value> is not initial )
+
+      endcase.
+
+    endloop.
 
   endmethod.
 

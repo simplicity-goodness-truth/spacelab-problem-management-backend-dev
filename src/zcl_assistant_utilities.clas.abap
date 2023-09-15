@@ -103,7 +103,14 @@ class zcl_assistant_utilities definition
         importing
           ip_email_address     type string
         returning
-          value(ep_is_correct) type abap_bool.
+          value(ep_is_correct) type abap_bool,
+
+      convert_time_to_seconds
+        importing
+          ip_amount_in_input_time_unit type int4
+          ip_input_time_unit           type timeunitdu
+        returning
+          value(rp_output_in_seconds)  type int4.
 
   protected section.
   private section.
@@ -229,6 +236,7 @@ class zcl_assistant_utilities implementation.
       lv_date type sy-datum,
       lv_time type sy-uzeit.
 
+    "convert time stamp ip_timestamp time zone 'UTC'
     convert time stamp ip_timestamp time zone 'UTC'
         into date lv_date time lv_time.
 
@@ -369,8 +377,8 @@ class zcl_assistant_utilities implementation.
           lv_time_formatted type string.
 
     get_date_time_from_timestamp(
-        exporting ip_timestamp = ip_timestamp
-        importing ep_date = lv_date ep_time = lv_time ).
+       exporting ip_timestamp = ip_timestamp
+       importing ep_date = lv_date ep_time = lv_time ).
 
 
     lv_date_formatted = format_date(
@@ -489,6 +497,22 @@ class zcl_assistant_utilities implementation.
       ep_is_correct = abap_true.
 
     endif.
+
+  endmethod.
+
+  method convert_time_to_seconds.
+
+    data lv_multiplier type int4.
+
+    lv_multiplier = switch timeunitdu(
+        ip_input_time_unit
+            when 'SECOND' then 1
+            when 'MINUTE' then 60
+            when 'HOUR' then 3600
+            when 'DAY' then 86400
+            when 'WEEK' then 604800 ).
+
+    rp_output_in_seconds = ip_amount_in_input_time_unit * lv_multiplier.
 
   endmethod.
 
