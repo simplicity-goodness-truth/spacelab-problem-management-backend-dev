@@ -14,20 +14,43 @@ class zcl_slpm_problem_history_store definition
     methods:
       constructor
         importing
-          ip_guid type crmt_object_guid.
+          ip_guid type crmt_object_guid
+        raising
+          zcx_slpm_configuration_exc
+          zcx_crm_order_api_exc
+          zcx_system_user_exc
+          zcx_slpm_data_manager_exc.
 
   protected section.
   private section.
+
+    types: begin of ty_field_to_supplement,
+
+             field               type char50,
+             supplementary_field type char50,
+             method              type string,
+             method_input_param  type abap_parmname,
+             method_return_param type abap_parmname,
+
+           end of ty_field_to_supplement.
+
+    types: tt_fields_to_supplement type table of ty_field_to_supplement.
+
     data:
-      mv_guid              type crmt_object_guid,
-      mv_event             type char1,
-      ms_zslpm_pr_his_hdr  type zslpm_pr_his_hdr,
-      ms_problem           type zcrm_order_ts_sl_problem,
-      mv_file_name         type string,
-      mv_change_guid       type sysuuid_x16,
-      mo_password          type string value 'veYlJeW&C6',
-      mt_fields_to_skip    type table of abap_compname,
-      mt_translation_table type table of zslpm_pr_fld_trs.
+      mv_guid                      type crmt_object_guid,
+      mv_event                     type char1,
+      ms_zslpm_pr_his_hdr          type zslpm_pr_his_hdr,
+      ms_problem                   type zcrm_order_ts_sl_problem,
+      mv_file_name                 type string,
+      mv_change_guid               type sysuuid_x16,
+      mo_password                  type string value 'veYlJeW&C6',
+      mt_fields_to_skip_on_display type table of abap_compname,
+      mt_translation_table         type table of zslpm_pr_fld_trs,
+      mt_fields_to_supplement      type tt_fields_to_supplement,
+      mo_slpm_data_provider        type ref to zif_slpm_data_manager,
+      mt_priorities                type zcrm_order_tt_priorities,
+      mt_statuses                  type zcrm_order_tt_statuses.
+
 
     methods:
 
@@ -80,7 +103,7 @@ class zcl_slpm_problem_history_store definition
 
       add_hist_att_record_to_db,
 
-      fill_fields_to_skip,
+      fill_fields_to_skip_on_display,
 
       translate_field_name
         importing
@@ -88,7 +111,40 @@ class zcl_slpm_problem_history_store definition
         returning
           value(rp_translation) type char50,
 
-      set_translation_table.
+      set_translation_table,
+
+      fill_fields_to_supplement,
+
+      get_statustext
+        importing
+          ip_status            type string
+        returning
+          value(rs_statustext) type string
+        raising
+          zcx_crm_order_api_exc
+          zcx_system_user_exc,
+
+      get_processorname
+        importing
+          ip_bp                   type string
+        returning
+          value(rs_processorname) type string,
+
+      get_prioritytext
+        importing
+          ip_priority            type string
+        returning
+          value(rs_prioritytext) type string
+        raising
+          zcx_crm_order_api_exc
+          zcx_system_user_exc,
+
+      set_slpm_data_provider
+        raising
+          zcx_slpm_configuration_exc
+          zcx_crm_order_api_exc
+          zcx_system_user_exc
+          zcx_slpm_data_manager_exc.
 
 endclass.
 
@@ -144,12 +200,6 @@ class zcl_slpm_problem_history_store implementation.
 
       if <ls_component>-name is not initial.
 
-        if line_exists(  mt_fields_to_skip[ table_line = <ls_component>-name ] ).
-
-          continue.
-
-        endif.
-
         assign component <ls_component>-name of structure ms_problem to <lv_value>.
 
         if sy-subrc = 0.
@@ -199,7 +249,11 @@ class zcl_slpm_problem_history_store implementation.
 
     mv_guid = ip_guid.
 
-    me->fill_fields_to_skip( ).
+    me->fill_fields_to_skip_on_display( ).
+
+    me->fill_fields_to_supplement( ).
+
+    me->set_slpm_data_provider( ).
 
   endmethod.
 
@@ -274,7 +328,9 @@ class zcl_slpm_problem_history_store implementation.
           lt_zslpm_pr_his_rec type zslpm_tt_pr_his_rec,
           ls_zslpm_pr_his_hry type zslpm_ts_pr_his_hry,
           lv_nodeid_counter   type int4 value 1,
-          lv_parent_nodeid    type int4.
+          lv_parent_nodeid    type int4,
+          lt_method_params    type abap_parmbind_tab,
+          lv_method           type string.
 
     if mt_translation_table is initial.
 
@@ -316,7 +372,6 @@ class zcl_slpm_problem_history_store implementation.
 
       lv_nodeid_counter = lv_nodeid_counter + 1.
 
-
       clear lt_zslpm_pr_his_rec.
 
       select
@@ -327,8 +382,13 @@ class zcl_slpm_problem_history_store implementation.
         from zslpm_pr_his_rec
         where change_guid = <ls_zslpm_pr_his_hdr>-change_guid.
 
-
       loop at lt_zslpm_pr_his_rec assigning field-symbol(<ls_zslpm_pr_his_rec>).
+
+*        if line_exists(  mt_fields_to_skip_on_display[ table_line = <ls_zslpm_pr_his_rec>-field ] ).
+*
+*          continue.
+*
+*        endif.
 
         ls_zslpm_pr_his_hry-nodeid = lv_nodeid_counter.
         ls_zslpm_pr_his_hry-hierarchylevel = 1.
@@ -336,16 +396,61 @@ class zcl_slpm_problem_history_store implementation.
         ls_zslpm_pr_his_hry-parentnodeid = lv_parent_nodeid.
         ls_zslpm_pr_his_hry-drillstate = 'leaf'.
 
-
-        "ls_zslpm_pr_his_hry-field = <ls_zslpm_pr_his_rec>-field.
-
         ls_zslpm_pr_his_hry-field = translate_field_name( <ls_zslpm_pr_his_rec>-field ).
 
         ls_zslpm_pr_his_hry-value = <ls_zslpm_pr_his_rec>-value.
 
-        append ls_zslpm_pr_his_hry to rt_zslpm_pr_his_hry.
+        if not line_exists(  mt_fields_to_skip_on_display[ table_line = <ls_zslpm_pr_his_rec>-field ] ).
+
+          append ls_zslpm_pr_his_hry to rt_zslpm_pr_his_hry.
+
+        endif.
 
         lv_nodeid_counter = lv_nodeid_counter + 1.
+
+        " Adding a complimentary field for update related records
+
+        if  ( <ls_zslpm_pr_his_hdr>-event eq 'U' ) and
+            ( line_exists( mt_fields_to_supplement[ field = <ls_zslpm_pr_his_rec>-field ] ) ).
+
+          "clear ls_zslpm_pr_his_hry.
+
+          ls_zslpm_pr_his_hry-nodeid = lv_nodeid_counter.
+          ls_zslpm_pr_his_hry-hierarchylevel = 1.
+          ls_zslpm_pr_his_hry-description = 'asd'.
+          ls_zslpm_pr_his_hry-parentnodeid = lv_parent_nodeid.
+          ls_zslpm_pr_his_hry-drillstate = 'leaf'.
+
+          ls_zslpm_pr_his_hry-field = translate_field_name( mt_fields_to_supplement[ field = <ls_zslpm_pr_his_rec>-field ]-supplementary_field ).
+
+          try.
+
+              lv_method = mt_fields_to_supplement[ field = <ls_zslpm_pr_his_rec>-field ]-method.
+
+              lt_method_params = value #(
+                 ( name = mt_fields_to_supplement[ field = <ls_zslpm_pr_his_rec>-field ]-method_input_param
+                    value = ref #( <ls_zslpm_pr_his_rec>-value )
+                        kind = cl_abap_objectdescr=>exporting )
+
+                 ( name = mt_fields_to_supplement[ field = <ls_zslpm_pr_his_rec>-field ]-method_return_param
+                    value = ref #( ls_zslpm_pr_his_hry-value )
+                        kind = cl_abap_objectdescr=>returning )
+
+              ).
+
+              call method me->(lv_method)
+                parameter-table
+                lt_method_params.
+
+            catch cx_sy_dyn_call_error into  data(lcx_process_exception).
+              data(lv_error) = lcx_process_exception->get_text(  ) .
+          endtry.
+
+          append ls_zslpm_pr_his_hry to rt_zslpm_pr_his_hry.
+
+          lv_nodeid_counter = lv_nodeid_counter + 1.
+
+        endif.
 
       endloop.
 
@@ -495,7 +600,8 @@ class zcl_slpm_problem_history_store implementation.
         event archived
             into table lt_history_store
                 from zslpm_pr_his_hdr
-                    where archived is null.
+                    where archived is null
+                    or archived eq ''.
 
       loop at lt_history_store assigning field-symbol(<ls_history_rec>).
 
@@ -546,9 +652,9 @@ class zcl_slpm_problem_history_store implementation.
 
   endmethod.
 
-  method fill_fields_to_skip.
+  method fill_fields_to_skip_on_display.
 
-    mt_fields_to_skip = value #(
+    mt_fields_to_skip_on_display = value #(
 
         ( 'IRT_TIMESTAMP_UTC' )
         ( 'MPT_TIMESTAMP_UTC' )
@@ -560,7 +666,15 @@ class zcl_slpm_problem_history_store implementation.
         ( 'IRT_ICON_BSP' )
         ( 'ITEM_GUID' )
         ( 'MPT_ICON_BSP' )
-
+        ( 'MPT_ICON_BSP' )
+        ( 'NOTE' )
+        ( 'STATUS' )
+        ( 'PROCESSORBUSINESSPARTNER')
+        ( 'PRIORITY')
+        ( 'REQUESTORBUSINESSPARTNER')
+        ( 'COMPANYBUSINESSPARTNER')
+        ( 'DEFAULTPROCESSINGORGUNIT' )
+        ( 'PRODUCTGUID' )
     ).
 
   endmethod.
@@ -585,6 +699,67 @@ class zcl_slpm_problem_history_store implementation.
     select mandt field_name spras translation into table mt_translation_table
         from zslpm_pr_fld_trs
         where spras = sy-langu.
+
+  endmethod.
+
+  method fill_fields_to_supplement.
+
+    mt_fields_to_supplement = value #(
+
+      ( field = 'STATUS' supplementary_field = 'STATUSTEXT' method = 'GET_STATUSTEXT' method_input_param = 'IP_STATUS' method_return_param = 'RS_STATUSTEXT')
+      ( field = 'PROCESSORBUSINESSPARTNER' supplementary_field = 'PROCESSORNAME' method = 'GET_PROCESSORNAME' method_input_param = 'IP_BP' method_return_param = 'RS_PROCESSORNAME')
+      ( field = 'PRIORITY' supplementary_field = 'PRIORITYTEXT' method = 'GET_PRIORITYTEXT' method_input_param = 'IP_PRIORITY' method_return_param = 'RS_PRIORITYTEXT')
+
+    ).
+
+  endmethod.
+
+  method get_statustext.
+
+    if mt_statuses is initial.
+
+      mt_statuses = mo_slpm_data_provider->get_all_statuses(  ).
+
+    endif.
+
+    try.
+
+        rs_statustext = mt_statuses[ code = ip_status ]-text.
+
+      catch cx_sy_itab_line_not_found.
+
+    endtry.
+
+  endmethod.
+
+  method get_processorname.
+
+    data lv_bp type bu_partner.
+
+    lv_bp = ip_bp.
+
+    rs_processorname = new zcl_bp_master_data( lv_bp )->zif_contacts_book~get_full_name(  ).
+
+  endmethod.
+
+  method get_prioritytext.
+
+    if mt_priorities is initial.
+      mt_priorities = mo_slpm_data_provider->get_all_priorities(  ).
+    endif.
+
+    try.
+
+        rs_prioritytext = mt_priorities[ code = ip_priority ]-description.
+
+      catch cx_sy_itab_line_not_found.
+
+    endtry.
+  endmethod.
+
+  method set_slpm_data_provider.
+
+    mo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
   endmethod.
 

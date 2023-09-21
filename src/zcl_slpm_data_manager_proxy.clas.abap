@@ -185,7 +185,24 @@ class zcl_slpm_data_manager_proxy definition
 
       adjust_sla_in_new_problem
         changing
-          cs_problem type zcrm_order_ts_sl_problem.
+          cs_problem type zcrm_order_ts_sl_problem,
+
+      recalc_mpt_sla
+        importing
+          ip_guid               type crmt_object_guid
+          ip_avail_profile_name type srv_serwi
+          ip_mpt_perc           type int4 optional
+          ip_statusin           type char5
+          ip_statusout          type char5
+          ip_priorityin         type crmt_priority
+          ip_priorityout        type crmt_priority
+        raising
+          zcx_slpm_configuration_exc
+          zcx_crm_order_api_exc,
+
+      adjust_scapptseg_mpt
+        importing
+          ip_guid type crmt_object_guid.
 
 
 endclass.
@@ -670,6 +687,7 @@ class zcl_slpm_data_manager_proxy implementation.
 
     if  is_problem_old_state-status ne is_problem_new_state-status.
       me->adjust_scapptseg_irt( is_problem_new_state-guid ).
+      me->adjust_scapptseg_mpt( is_problem_new_state-guid ).
     endif.
 
 
@@ -790,6 +808,37 @@ class zcl_slpm_data_manager_proxy implementation.
         lt_specific_params = value #(
              ( name = 'IP_AVAIL_PROFILE_NAME' value = ref #( lv_avail_profile ) kind = cl_abap_objectdescr=>exporting )
              ( name = 'IP_IRT_PERC' value = ref #( is_problem_new_state-irt_perc ) kind = cl_abap_objectdescr=>exporting )
+           ).
+
+        insert lines of lt_specific_params into table lt_method_params.
+
+        ls_method-parameters = lt_method_params.
+
+        append ls_method to lt_methods_list.
+
+      endif.
+
+      " Recalculation will be done only if MPT is not overdue
+
+      if ( mo_active_configuration->get_parameter_value( 'SHIFT_MPT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X') and
+        ( is_problem_new_state-irt_icon_bsp eq 'NOTDUE').
+
+        lv_method_name = |RECALC_MPT_SLA|.
+
+        ls_method-method_name = lv_method_name.
+
+        " Getting a name of an availability profile
+
+        lo_slpm_product = new zcl_crm_service_product( is_problem_new_state-productguid ).
+
+        lv_avail_profile = lo_slpm_product->get_availability_profile_name(  ).
+
+        clear lt_method_params.
+        lt_method_params = corresponding #( lt_common_params ).
+
+        lt_specific_params = value #(
+             ( name = 'IP_AVAIL_PROFILE_NAME' value = ref #( lv_avail_profile ) kind = cl_abap_objectdescr=>exporting )
+             ( name = 'IP_MPT_PERC' value = ref #( is_problem_new_state-mpt_perc ) kind = cl_abap_objectdescr=>exporting )
            ).
 
         insert lines of lt_specific_params into table lt_method_params.
@@ -968,6 +1017,7 @@ class zcl_slpm_data_manager_proxy implementation.
       ls_zslpm_irt_hist-statusout = ip_statusout.
       ls_zslpm_irt_hist-priorityin = ip_priorityin.
       ls_zslpm_irt_hist-priorityout = ip_priorityout.
+      ls_zslpm_irt_hist-username = sy-uname.
 
       insert zslpm_irt_hist from ls_zslpm_irt_hist.
 
@@ -1061,7 +1111,7 @@ class zcl_slpm_data_manager_proxy implementation.
 
     endtry.
 
-    " Storing old IRT SLA
+    " Storing old MPT SLA
 
     select single tst_from zone_from into ( ls_zslpm_mpt_hist-mpttimestamp, ls_zslpm_mpt_hist-mpttimezone )
      from scapptseg
@@ -1079,6 +1129,7 @@ class zcl_slpm_data_manager_proxy implementation.
       ls_zslpm_mpt_hist-statusout = ip_statusout.
       ls_zslpm_mpt_hist-priorityin = ip_priorityin.
       ls_zslpm_mpt_hist-priorityout = ip_priorityout.
+      ls_zslpm_mpt_hist-username = sy-uname.
 
       insert zslpm_mpt_hist from ls_zslpm_mpt_hist.
 
@@ -1681,4 +1732,151 @@ class zcl_slpm_data_manager_proxy implementation.
     endif.
 
   endmethod.
+
+  method recalc_mpt_sla.
+
+    data:lv_difference_in_seconds      type integer,
+         lv_timestamp_of_status_switch type timestamp,
+         lv_mpt_update_timestamp       type timestamp,
+         lv_mpt_update_timezone        type timezone,
+         lv_old_mpt_timestamp          type timestamp,
+         lv_old_mpt_timezone           type timezone,
+         lv_new_mpt_timestamp          type timestamp,
+         lv_new_mpt_timezone           type timezone,
+         lv_appt_guid                  type sc_aptguid,
+         lo_serv_profile_date_calc     type ref to zif_serv_profile,
+         lv_avail_profile_name         type char258,
+         lv_time                       type sy-uzeit,
+         lv_date                       type sy-datum,
+         lv_system_timezone            type timezone,
+         ls_zslpm_mpt_hist             type zslpm_mpt_hist.
+
+    " Taking a timestamp when we switched back from 'Information Requested
+
+    get time stamp field lv_timestamp_of_status_switch.
+
+    " Taking last stored MPT SLA
+
+    select  update_timestamp update_timezone mpttimestamp mpttimezone apptguid
+        from zslpm_mpt_hist
+        into (lv_mpt_update_timestamp, lv_mpt_update_timezone, lv_old_mpt_timestamp, lv_old_mpt_timezone, lv_appt_guid)
+       up to 1 rows
+         where problemguid = ip_guid order by update_timestamp descending.
+
+    endselect.
+
+    if sy-subrc eq 0.
+
+      " Calculating difference between movement from 'On Approval' to 'Information Requested' and backwards
+
+      lv_difference_in_seconds = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+       exporting
+           ip_timestamp_1 = lv_mpt_update_timestamp
+           ip_timestamp_2 = lv_timestamp_of_status_switch ).
+
+      " Calculating new value for IRT and storing it
+
+      lv_avail_profile_name = ip_avail_profile_name.
+
+      lo_serv_profile_date_calc = new zcl_serv_profile( lv_avail_profile_name  ).
+
+      zcl_assistant_utilities=>get_date_time_from_timestamp(
+        exporting
+            ip_timestamp = lv_old_mpt_timestamp
+            importing
+            ep_date = lv_date
+            ep_time = lv_time ).
+
+      lo_serv_profile_date_calc->add_seconds_to_date(
+        exporting
+            ip_added_seconds_total = lv_difference_in_seconds
+            ip_date_from = lv_date
+            ip_time_from = lv_time
+        importing
+            ep_sla_date = lv_date
+            ep_sla_time = lv_time ).
+
+      lv_system_timezone =  zcl_assistant_utilities=>get_system_timezone(  ).
+
+      convert date lv_date time lv_time into time stamp lv_new_mpt_timestamp time zone lv_system_timezone.
+
+      update scapptseg set
+          tst_from =  lv_new_mpt_timestamp
+          tst_to = lv_new_mpt_timestamp
+      where
+          appt_guid = lv_appt_guid.
+
+      " Storing for further internal usage
+
+      ls_zslpm_mpt_hist-mpttimestamp = lv_new_mpt_timestamp.
+      ls_zslpm_mpt_hist-mpttimezone = lv_system_timezone.
+      ls_zslpm_mpt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
+      ls_zslpm_mpt_hist-apptguid = lv_appt_guid.
+      ls_zslpm_mpt_hist-problemguid = ip_guid.
+      get time stamp field ls_zslpm_mpt_hist-update_timestamp.
+      ls_zslpm_mpt_hist-mptperc = ip_mpt_perc.
+      ls_zslpm_mpt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
+      ls_zslpm_mpt_hist-statusin = ip_statusin.
+      ls_zslpm_mpt_hist-statusout = ip_statusout.
+      ls_zslpm_mpt_hist-priorityin = ip_priorityin.
+      ls_zslpm_mpt_hist-priorityout = ip_priorityout.
+      ls_zslpm_mpt_hist-username = sy-uname.
+
+      insert zslpm_mpt_hist from ls_zslpm_mpt_hist.
+
+    endif.
+
+  endmethod.
+
+  method adjust_scapptseg_mpt.
+
+    data:
+      lv_mpt_update_timestamp    type timestamp,
+      lv_mpt_update_timezone     type timezone,
+      lv_stored_mpt_timestamp    type timestamp,
+      lv_stored_mpt_timezone     type timezone,
+      lv_appt_guid               type sc_aptguid,
+      lv_scapptseg_mpt_timestamp type timestamp,
+      lv_scapptseg_mpt_timezone  type timezone.
+
+    " Taking last stored IRT SLA
+
+    select update_timestamp update_timezone mpttimestamp mpttimezone apptguid
+      from zslpm_mpt_hist
+      into (lv_mpt_update_timestamp, lv_mpt_update_timezone, lv_stored_mpt_timestamp, lv_stored_mpt_timezone, lv_appt_guid)
+      up to 1 rows
+      where problemguid = ip_guid order by update_timestamp descending.
+
+      if sy-subrc eq 0.
+
+        select single tst_from zone_from into ( lv_scapptseg_mpt_timestamp, lv_scapptseg_mpt_timezone )
+            from scapptseg
+            where appt_guid = lv_appt_guid.
+
+        if lv_stored_mpt_timestamp > lv_scapptseg_mpt_timestamp.
+
+          update scapptseg set
+              tst_from =  lv_stored_mpt_timestamp
+              tst_to = lv_stored_mpt_timestamp
+          where
+              appt_guid = lv_appt_guid.
+
+        endif.
+
+      endif.
+
+    endselect.
+
+  endmethod.
+
+  method zif_slpm_data_manager~get_frontend_constants.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_constants = mo_slpm_data_provider->get_frontend_constants( ).
+
+    endif.
+
+  endmethod.
+
 endclass.

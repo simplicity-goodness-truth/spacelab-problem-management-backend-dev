@@ -225,6 +225,10 @@ interface zif_slpm_data_manager
       returning
         value(rt_support_teams) type zslpm_tt_support_teams
       raising
-        zcx_slpm_configuration_exc.
+        zcx_slpm_configuration_exc,
+
+    get_frontend_constants
+      returning
+        value(rt_constants) type zslpm_tt_frontend_const.
 
 endinterface.
