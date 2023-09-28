@@ -8,6 +8,7 @@ class zcl_slpm_dpc_ext definition
     methods /iwbep/if_mgw_appl_srv_runtime~create_stream redefinition.
     methods /iwbep/if_mgw_appl_srv_runtime~delete_stream redefinition.
   protected section.
+    methods problemflowstati_get_entityset redefinition.
     methods frontendconstant_get_entityset redefinition.
     methods supportteamset_get_entityset redefinition.
     methods problemhistory02_get_entityset redefinition.
@@ -1053,9 +1054,20 @@ class zcl_slpm_dpc_ext implementation.
 
     if lv_guid is not initial.
 
-      lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( lv_guid ).
+      try.
 
-      et_entityset = lo_slpm_problem_history_store->get_problem_history_hierarchy(  ).
+          lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( lv_guid ).
+
+          et_entityset = lo_slpm_problem_history_store->get_problem_history_hierarchy(  ).
+
+        catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
+          raise_exception( lcx_process_exception->get_text(  ) ).
+
+      endtry.
+
+
     endif.
 
   endmethod.
@@ -1097,6 +1109,52 @@ class zcl_slpm_dpc_ext implementation.
 
     endtry.
 
+  endmethod.
+
+  method problemflowstati_get_entityset.
+
+
+    data: lv_guid                       type crmt_object_guid,
+          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store,
+          lt_filter_status              type /iwbep/t_cod_select_options,
+          lt_filter_processorname       type /iwbep/t_cod_select_options,
+          lt_entityset                  type zcl_slpm_mpc=>tt_problemflowstatistics.
+
+
+    lt_filter_status = get_filter_select_options( io_tech_request_context  = io_tech_request_context
+                                              ip_property = 'STATUS' ).
+
+    lt_filter_processorname = get_filter_select_options( io_tech_request_context  = io_tech_request_context
+        ip_property = 'PROCESSORNAME' ).
+
+    read table it_key_tab into data(ls_key_tab) with key name = 'Guid'.
+
+    lv_guid = ls_key_tab-value.
+
+    if lv_guid is not initial.
+
+      try.
+
+          lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( lv_guid ).
+
+          lt_entityset = lo_slpm_problem_history_store->get_problem_flow_stat( ).
+
+          loop at lt_entityset assigning field-symbol(<ls_entityset>)
+            where status in lt_filter_status and
+            processorname in lt_filter_processorname.
+
+            append <ls_entityset> to et_entityset.
+
+          endloop.
+
+        catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+        zcx_system_user_exc into data(lcx_process_exception).
+          raise_exception( lcx_process_exception->get_text(  ) ).
+
+      endtry.
+
+    endif.
 
 
   endmethod.

@@ -144,7 +144,16 @@ class zcl_slpm_problem_history_store definition
           zcx_slpm_configuration_exc
           zcx_crm_order_api_exc
           zcx_system_user_exc
-          zcx_slpm_data_manager_exc.
+          zcx_slpm_data_manager_exc,
+
+      get_supportteamname
+        importing
+          ip_bp                     type string
+        returning
+          value(rs_supportteamname) type string.
+
+
+
 
 endclass.
 
@@ -675,6 +684,7 @@ class zcl_slpm_problem_history_store implementation.
         ( 'COMPANYBUSINESSPARTNER')
         ( 'DEFAULTPROCESSINGORGUNIT' )
         ( 'PRODUCTGUID' )
+        ( 'SUPPORTTEAMBUSINESSPARTNER' )
     ).
 
   endmethod.
@@ -709,6 +719,7 @@ class zcl_slpm_problem_history_store implementation.
       ( field = 'STATUS' supplementary_field = 'STATUSTEXT' method = 'GET_STATUSTEXT' method_input_param = 'IP_STATUS' method_return_param = 'RS_STATUSTEXT')
       ( field = 'PROCESSORBUSINESSPARTNER' supplementary_field = 'PROCESSORNAME' method = 'GET_PROCESSORNAME' method_input_param = 'IP_BP' method_return_param = 'RS_PROCESSORNAME')
       ( field = 'PRIORITY' supplementary_field = 'PRIORITYTEXT' method = 'GET_PRIORITYTEXT' method_input_param = 'IP_PRIORITY' method_return_param = 'RS_PRIORITYTEXT')
+      ( field = 'SUPPORTTEAMBUSINESSPARTNER' supplementary_field = 'SUPPORTTEAMNAME' method = 'GET_SUPPORTTEAMNAME' method_input_param = 'IP_BP' method_return_param = 'RS_SUPPORTTEAMNAME')
 
     ).
 
@@ -760,6 +771,281 @@ class zcl_slpm_problem_history_store implementation.
   method set_slpm_data_provider.
 
     mo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+  endmethod.
+
+  method zif_slpm_problem_history_store~get_problem_flow_stat.
+
+    data:
+      lt_history_headers       type zslpm_tt_pr_his_hdr,
+      lt_history_records       type zslpm_tt_pr_his_rec,
+      wa_problem_statistic     type zslpm_ts_pr_flow_stat,
+      lt_fields_for_stat       type range of char50,
+      lt_problem_flow_stat     type zslpm_tt_pr_flow_stat,
+      lt_problem_proc_stat     type zslpm_tt_pr_flow_stat,
+      lv_timestamp_in          type timestamp,
+      lv_timestamp_out         type timestamp,
+      lv_system_timezone       type timezone,
+      lt_final_statuses        type range of j_estat,
+      lv_total_on_customer     type integer,
+      lv_total_not_on_customer type integer.
+
+    lv_system_timezone = zcl_assistant_utilities=>get_system_timezone( ).
+
+    lt_fields_for_stat = value #(
+        ( low = 'STATUS' option = 'EQ' sign = 'I')
+        ( low = 'PROCESSORBUSINESSPARTNER' option = 'EQ' sign = 'I')
+        ( low = 'SUPPORTTEAMBUSINESSPARTNER' option = 'EQ' sign = 'I')
+        ( low = 'PRIORITY' option = 'EQ' sign = 'I')
+    ).
+
+
+    lt_final_statuses = value #(
+        ( low = 'E0010' option = 'EQ' sign = 'I')
+        ( low = 'E0008' option = 'EQ' sign = 'I')
+    ).
+
+
+
+    lt_history_headers = me->zif_slpm_problem_history_store~get_problem_history_headers( ).
+
+    sort lt_history_headers by change_date change_time.
+
+    lt_history_records = me->zif_slpm_problem_history_store~get_problem_history_records( ).
+
+    delete lt_history_records where field not in lt_fields_for_stat.
+
+    loop at lt_history_headers assigning field-symbol(<ls_history_header>)
+        where event eq 'U' or event eq 'C'.
+
+      loop at lt_history_records assigning field-symbol(<ls_history_record>)
+          where change_guid = <ls_history_header>-change_guid.
+
+        wa_problem_statistic-datein = <ls_history_header>-change_date.
+        wa_problem_statistic-timein = <ls_history_header>-change_time.
+
+        convert date wa_problem_statistic-datein time wa_problem_statistic-timein into time stamp
+          wa_problem_statistic-timestampin time zone lv_system_timezone.
+
+        case <ls_history_record>-field.
+
+          when 'STATUS'.
+
+            wa_problem_statistic-status = <ls_history_record>-value.
+
+            wa_problem_statistic-statustext = me->get_statustext( <ls_history_record>-value ).
+
+            wa_problem_statistic-iscustomeractionstatus = mo_slpm_data_provider->is_status_a_customer_action( wa_problem_statistic-status ).
+
+
+          when 'PROCESSORBUSINESSPARTNER'.
+
+            wa_problem_statistic-processorbusinesspartner = <ls_history_record>-value.
+
+            wa_problem_statistic-processorname = me->get_processorname( <ls_history_record>-value ).
+
+          when 'SUPPORTTEAMBUSINESSPARTNER'.
+
+            wa_problem_statistic-supportteambusinesspartner = <ls_history_record>-value.
+
+            wa_problem_statistic-supportteamname = me->get_supportteamname( <ls_history_record>-value ).
+
+          when 'PRIORITY'.
+
+            wa_problem_statistic-priority = <ls_history_record>-value.
+
+        endcase.
+
+      endloop.
+
+      append wa_problem_statistic to lt_problem_flow_stat.
+
+    endloop.
+
+    do lines( lt_problem_flow_stat ) - 1 times.
+
+      try.
+
+          clear wa_problem_statistic.
+
+          wa_problem_statistic = lt_problem_flow_stat[ sy-index ].
+
+          wa_problem_statistic-dateout = lt_problem_flow_stat[ sy-index + 1 ]-datein.
+          wa_problem_statistic-timeout = lt_problem_flow_stat[ sy-index + 1 ]-timein.
+
+          " Calculating duration
+
+          convert date wa_problem_statistic-datein time wa_problem_statistic-timein into time stamp
+            lv_timestamp_in time zone lv_system_timezone.
+
+          convert date wa_problem_statistic-dateout time wa_problem_statistic-timeout into time stamp
+            lv_timestamp_out time zone lv_system_timezone.
+
+          wa_problem_statistic-duration_in_seconds = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+              exporting
+                  ip_timestamp_1 = lv_timestamp_in
+                  ip_timestamp_2 = lv_timestamp_out
+          ).
+
+          modify lt_problem_flow_stat index sy-index from wa_problem_statistic.
+
+          " Collecting sum
+
+          if ( wa_problem_statistic-iscustomeractionstatus eq abap_true ).
+
+            lv_total_on_customer = lv_total_on_customer + wa_problem_statistic-duration_in_seconds.
+
+          else.
+
+            lv_total_not_on_customer = lv_total_not_on_customer + wa_problem_statistic-duration_in_seconds.
+
+          endif.
+
+
+        catch cx_sy_itab_line_not_found.
+
+      endtry.
+
+    enddo.
+
+    " Last record out date and time are always NOW
+    " This is valid only for non final statuses
+    " For final statuses duration, out date and time are always initial
+
+    if lt_problem_flow_stat[ lines( lt_problem_flow_stat ) ]-status
+        not in lt_final_statuses.
+
+      clear wa_problem_statistic.
+
+      try.
+
+          wa_problem_statistic = lt_problem_flow_stat[ lines( lt_problem_flow_stat ) ].
+
+          wa_problem_statistic-dateout = sy-datum.
+          wa_problem_statistic-timeout = sy-uzeit.
+
+          convert date wa_problem_statistic-dateout time wa_problem_statistic-timeout into time stamp
+            lv_timestamp_out time zone lv_system_timezone.
+
+
+          convert
+              date lt_problem_flow_stat[ lines( lt_problem_flow_stat ) ]-datein
+              time lt_problem_flow_stat[ lines( lt_problem_flow_stat ) ]-timein into time stamp
+                  lv_timestamp_in time zone lv_system_timezone.
+
+          wa_problem_statistic-duration_in_seconds = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+              exporting
+                  ip_timestamp_1 = lv_timestamp_in
+                  ip_timestamp_2 = lv_timestamp_out
+          ).
+
+          modify lt_problem_flow_stat index lines( lt_problem_flow_stat ) from wa_problem_statistic.
+
+          " Collecting sum
+
+          if ( wa_problem_statistic-iscustomeractionstatus eq abap_true ).
+
+            lv_total_on_customer = lv_total_on_customer + wa_problem_statistic-duration_in_seconds.
+
+          else.
+
+            lv_total_not_on_customer = lv_total_not_on_customer + wa_problem_statistic-duration_in_seconds.
+
+          endif.
+
+
+
+        catch cx_sy_itab_line_not_found.
+
+      endtry.
+
+    endif.
+
+    " Preparing totals
+
+    clear wa_problem_statistic.
+
+    wa_problem_statistic-status = 'TOTC'.
+    wa_problem_statistic-duration_in_seconds = lv_total_on_customer.
+
+    append wa_problem_statistic to lt_problem_flow_stat.
+
+    wa_problem_statistic-status = 'TOTN'.
+    wa_problem_statistic-duration_in_seconds = lv_total_not_on_customer.
+
+    append wa_problem_statistic to lt_problem_flow_stat.
+
+
+
+    " Preparing summary for processors
+
+    " Spent by processors on Customer actions
+
+    loop at lt_problem_flow_stat assigning field-symbol(<fs_problem_flow_stat_pc>)
+        where status ns 'TOT' and iscustomeractionstatus eq abap_true
+        group by ( key = <fs_problem_flow_stat_pc>-processorbusinesspartner )
+            ascending
+            assigning field-symbol(<fs_group_pc>).
+
+      clear wa_problem_statistic.
+
+      loop at group <fs_group_pc> assigning field-symbol(<fs_group_record_pc>).
+
+        wa_problem_statistic-duration_in_seconds = wa_problem_statistic-duration_in_seconds + <fs_group_record_pc>-duration_in_seconds.
+
+      endloop.
+
+      wa_problem_statistic-status = 'TOTPC'.
+
+      wa_problem_statistic-processorbusinesspartner = <fs_group_record_pc>-processorbusinesspartner.
+      wa_problem_statistic-processorname = <fs_group_record_pc>-processorname.
+      wa_problem_statistic-iscustomeractionstatus = <fs_group_record_pc>-iscustomeractionstatus.
+
+      append wa_problem_statistic to lt_problem_proc_stat.
+
+    endloop.
+
+    " Spent by processors not on Customer actions
+
+    loop at lt_problem_flow_stat assigning field-symbol(<fs_problem_flow_stat_pn>)
+        where status ns 'TOT' and iscustomeractionstatus eq abap_false
+        group by ( key = <fs_problem_flow_stat_pn>-processorbusinesspartner )
+            ascending
+            assigning field-symbol(<fs_group_pn>).
+
+      clear wa_problem_statistic.
+
+      loop at group <fs_group_pn> assigning field-symbol(<fs_group_record_pn>).
+
+        wa_problem_statistic-duration_in_seconds = wa_problem_statistic-duration_in_seconds + <fs_group_record_pn>-duration_in_seconds.
+
+      endloop.
+
+      wa_problem_statistic-status = 'TOTPN'.
+
+      wa_problem_statistic-processorbusinesspartner = <fs_group_record_pn>-processorbusinesspartner.
+      wa_problem_statistic-processorname = <fs_group_record_pn>-processorname.
+      wa_problem_statistic-iscustomeractionstatus = <fs_group_record_pn>-iscustomeractionstatus.
+
+      append wa_problem_statistic to lt_problem_proc_stat.
+
+    endloop.
+
+    append lines of lt_problem_flow_stat to rt_problem_flow_stat.
+
+    append lines of lt_problem_proc_stat to rt_problem_flow_stat.
+
+
+
+  endmethod.
+
+  method get_supportteamname.
+
+    data lv_bp type bu_partner.
+
+    lv_bp = ip_bp.
+
+    rs_supportteamname = new zcl_bp_master_data( lv_bp )->zif_contacts_book~get_full_name(  ).
 
   endmethod.
 
