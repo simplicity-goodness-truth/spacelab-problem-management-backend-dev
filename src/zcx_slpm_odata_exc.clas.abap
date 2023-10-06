@@ -26,6 +26,15 @@ public section.
       attr3 type scx_attrname value '',
       attr4 type scx_attrname value '',
     end of FILTER_NOT_PROVIDED_FOR_ENTITY .
+  constants:
+    begin of CLIENT_NOT_SUPPORTED,
+      msgid type symsgid value 'ZSLPM_ODATA',
+      msgno type symsgno value '002',
+      attr1 type scx_attrname value '',
+      attr2 type scx_attrname value '',
+      attr3 type scx_attrname value '',
+      attr4 type scx_attrname value '',
+    end of CLIENT_NOT_SUPPORTED .
   class-data MV_ENTITY type STRING .
 
   methods CONSTRUCTOR

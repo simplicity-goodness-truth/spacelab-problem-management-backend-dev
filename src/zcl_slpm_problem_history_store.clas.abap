@@ -787,6 +787,7 @@ class zcl_slpm_problem_history_store implementation.
       lv_timestamp_out         type timestamp,
       lv_system_timezone       type timezone,
       lt_final_statuses        type range of j_estat,
+      wa_final_status_code     like line of lt_final_statuses,
       lv_total_on_customer     type integer,
       lv_total_not_on_customer type integer.
 
@@ -799,13 +800,15 @@ class zcl_slpm_problem_history_store implementation.
         ( low = 'PRIORITY' option = 'EQ' sign = 'I')
     ).
 
+    loop at mo_slpm_data_provider->get_final_status_codes( ) assigning field-symbol(<fs_final_status_code>).
 
-    lt_final_statuses = value #(
-        ( low = 'E0010' option = 'EQ' sign = 'I')
-        ( low = 'E0008' option = 'EQ' sign = 'I')
-    ).
+      wa_final_status_code-low = <fs_final_status_code>.
+      wa_final_status_code-option = 'EQ'.
+      wa_final_status_code-sign = 'I'.
 
+      append wa_final_status_code to lt_final_statuses.
 
+    endloop.
 
     lt_history_headers = me->zif_slpm_problem_history_store~get_problem_history_headers( ).
 

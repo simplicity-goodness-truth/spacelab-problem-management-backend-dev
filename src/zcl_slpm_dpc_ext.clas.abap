@@ -69,7 +69,17 @@ class zcl_slpm_dpc_ext definition
           !ip_property             type string
           !io_tech_request_context type ref to /iwbep/if_mgw_req_entityset
         returning
-          value(et_select_options) type /iwbep/t_cod_select_options .
+          value(et_select_options) type /iwbep/t_cod_select_options ,
+
+      is_valid_slpm_odata_request
+        importing
+          io_slpm_data_provider type ref to zif_slpm_data_manager optional
+        returning
+          value(rp_valid)       type abap_bool
+        raising
+          zcx_slpm_odata_exc
+          zcx_slpm_configuration_exc
+          zcx_slpm_data_manager_exc.
 
 endclass.
 
@@ -119,14 +129,18 @@ class zcl_slpm_dpc_ext implementation.
     lt_set_filters = io_tech_request_context->get_filter( )->get_filter_select_options( ).
 
     try.
+
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         et_entityset = lo_slpm_data_provider->get_problems_list(
             exporting
             it_filters = lt_set_filters
             it_order = it_order ).
 
-      catch zcx_slpm_data_manager_exc zcx_crm_order_api_exc
+      catch zcx_slpm_odata_exc zcx_slpm_data_manager_exc zcx_crm_order_api_exc
         zcx_assistant_utilities_exc zcx_slpm_configuration_exc
         zcx_system_user_exc into data(lcx_process_exception).
         raise_exception( lcx_process_exception->get_text(  ) ).
@@ -156,6 +170,9 @@ class zcl_slpm_dpc_ext implementation.
         endif.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         er_entity = lo_slpm_data_provider->get_problem( lv_guid ).
 
@@ -198,6 +215,9 @@ class zcl_slpm_dpc_ext implementation.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
         lo_slpm_data_provider->get_texts(
             exporting ip_guid = lv_guid
             importing et_texts = lt_texts ).
@@ -237,6 +257,9 @@ class zcl_slpm_dpc_ext implementation.
 
           lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+          " Validation of SLPM OData request
+          me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
           lo_slpm_data_provider->get_attachments_list( exporting
               ip_guid = lv_guid
               importing
@@ -275,6 +298,9 @@ class zcl_slpm_dpc_ext implementation.
     try.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         er_entity = lo_slpm_data_provider->get_attachment( exporting ip_guid = lv_guid ip_loio = lv_loio ip_phio = lv_phio ).
 
@@ -499,6 +525,9 @@ class zcl_slpm_dpc_ext implementation.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
         lo_slpm_data_provider->delete_attachment(
             exporting
                 ip_guid = lv_guid
@@ -542,6 +571,9 @@ class zcl_slpm_dpc_ext implementation.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
         lo_slpm_data_provider->create_text(
         exporting
             ip_guid = lv_guid
@@ -568,77 +600,93 @@ class zcl_slpm_dpc_ext implementation.
           lt_filter_customer_bp  type /iwbep/t_cod_select_options,
           lo_bp_master_data      type ref to zif_bp_master_data,
           lv_bp_num              type bu_partner,
-          lo_slpm_product        type ref to zif_slpm_product.
-
-    " Get filter
-
-    lt_filter_customer_bp = get_filter_select_options( io_tech_request_context  = io_tech_request_context
-                                           ip_property = 'COMPANYBUSINESSPARTNER' ).
+          lo_slpm_product        type ref to zif_slpm_product,
+          lo_slpm_data_provider  type ref to zif_slpm_data_manager.
 
     try.
 
-        " Conversion with leading zeroes is required
+        " Validation of SLPM OData request
 
-        lv_bp_num = lt_filter_customer_bp[ 1 ]-low.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-        lo_bp_master_data  = new zcl_bp_master_data( lv_bp_num ).
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
-        lt_filter_customer_bp[ 1 ]-low = lo_bp_master_data->get_bp_number( ).
+        " Get filter
 
-      catch cx_sy_itab_line_not_found.
+        lt_filter_customer_bp = get_filter_select_options( io_tech_request_context  = io_tech_request_context
+                                               ip_property = 'COMPANYBUSINESSPARTNER' ).
 
-    endtry.
+        try.
 
-    " Get products, available for user
+            " Conversion with leading zeroes is required
 
-    try.
+            lv_bp_num = lt_filter_customer_bp[ 1 ]-low.
 
-        lo_slpm_user = new zcl_slpm_user( sy-uname ).
+            lo_bp_master_data  = new zcl_bp_master_data( lv_bp_num ).
 
-        lt_products = lo_slpm_user->get_slpm_products_of_user(  ).
+            lt_filter_customer_bp[ 1 ]-low = lo_bp_master_data->get_bp_number( ).
 
-        loop at lt_products assigning field-symbol(<ls_product>) where companybusinesspartner in lt_filter_customer_bp.
+          catch cx_sy_itab_line_not_found.
 
-          ls_entity-guid = <ls_product>-guid.
-          ls_entity-id = <ls_product>-id.
-          ls_entity-name = <ls_product>-name.
-          ls_entity-companybusinesspartner = cond #(
-            when lt_filter_customer_bp is not initial then <ls_product>-companybusinesspartner
-            else '' ).
+        endtry.
 
-          lo_slpm_product = new zcl_slpm_product( <ls_product>-guid ).
+        " Get products, available for user
 
-          ls_entity-showpriorities = lo_slpm_product->is_show_priority_set(  ).
+        try.
 
-          lo_crm_service_product ?= lo_slpm_product.
+            lo_slpm_user = new zcl_slpm_user( sy-uname ).
 
-          ls_entity-prioritiescount = lo_crm_service_product->get_resp_profile_prio_count(  ).
+            lt_products = lo_slpm_user->get_slpm_products_of_user(  ).
 
-          " We skip all products, which don't have proper priorities assigned
-          " through a response profile
+            loop at lt_products assigning field-symbol(<ls_product>) where companybusinesspartner in lt_filter_customer_bp.
 
-          if ls_entity-prioritiescount > 0.
+              ls_entity-guid = <ls_product>-guid.
+              ls_entity-id = <ls_product>-id.
+              ls_entity-name = <ls_product>-name.
+              ls_entity-companybusinesspartner = cond #(
+                when lt_filter_customer_bp is not initial then <ls_product>-companybusinesspartner
+                else '' ).
 
-            append  ls_entity to et_entityset.
+              lo_slpm_product = new zcl_slpm_product( <ls_product>-guid ).
 
-          endif.
+              ls_entity-showpriorities = lo_slpm_product->is_show_priority_set(  ).
 
-          clear ls_entity.
+              lo_crm_service_product ?= lo_slpm_product.
 
-        endloop.
+              ls_entity-prioritiescount = lo_crm_service_product->get_resp_profile_prio_count(  ).
+
+              " We skip all products, which don't have proper priorities assigned
+              " through a response profile
+
+              if ls_entity-prioritiescount > 0.
+
+                append  ls_entity to et_entityset.
+
+              endif.
+
+              clear ls_entity.
+
+            endloop.
 
 
-        " For empty company filter we just display all products of user without duplicates
+            " For empty company filter we just display all products of user without duplicates
 
-        if lt_filter_customer_bp is initial.
+            if lt_filter_customer_bp is initial.
 
-          sort et_entityset.
+              sort et_entityset.
 
-          delete adjacent duplicates from et_entityset comparing id.
+              delete adjacent duplicates from et_entityset comparing id.
 
-        endif.
+            endif.
 
-      catch zcx_system_user_exc zcx_slpm_configuration_exc into data(lcx_process_exception).
+          catch zcx_system_user_exc zcx_slpm_configuration_exc into data(lcx_process_exception).
+            raise_exception( lcx_process_exception->get_text(  ) ).
+
+        endtry.
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+             zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+             zcx_system_user_exc into lcx_process_exception.
         raise_exception( lcx_process_exception->get_text(  ) ).
 
     endtry.
@@ -649,22 +697,41 @@ class zcl_slpm_dpc_ext implementation.
 
     data: lv_guid                type comt_product_guid,
           lo_crm_service_product type ref to zif_crm_service_product,
-          lo_slpm_product        type ref to zif_slpm_product.
+          lo_slpm_product        type ref to zif_slpm_product,
+          lo_slpm_data_provider  type ref to zif_slpm_data_manager.
 
-    loop at it_key_tab assigning field-symbol(<ls_guid>).
-      move <ls_guid>-value to lv_guid.
-    endloop.
+    try.
 
-    lo_slpm_product = new zcl_slpm_product( lv_guid ).
+        " Validation of SLPM OData request
 
-    lo_crm_service_product ?= lo_slpm_product.
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-    er_entity-guid = lv_guid.
-    er_entity-id = lo_crm_service_product->zif_crm_product~get_id( ).
-    er_entity-name = lo_crm_service_product->zif_crm_product~get_name(  ).
-    er_entity-prioritiescount = lo_crm_service_product->get_resp_profile_prio_count(  ).
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
-    er_entity-showpriorities =  lo_slpm_product->is_show_priority_set(  ).
+
+        loop at it_key_tab assigning field-symbol(<ls_guid>).
+          move <ls_guid>-value to lv_guid.
+        endloop.
+
+        lo_slpm_product = new zcl_slpm_product( lv_guid ).
+
+        lo_crm_service_product ?= lo_slpm_product.
+
+        er_entity-guid = lv_guid.
+        er_entity-id = lo_crm_service_product->zif_crm_product~get_id( ).
+        er_entity-name = lo_crm_service_product->zif_crm_product~get_name(  ).
+        er_entity-prioritiescount = lo_crm_service_product->get_resp_profile_prio_count(  ).
+
+        er_entity-showpriorities =  lo_slpm_product->is_show_priority_set(  ).
+
+
+
+      catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc
+            zcx_system_user_exc into data(lcx_process_exception).
+        raise_exception( lcx_process_exception->get_text(  ) ).
+
+    endtry.
 
   endmethod.
 
@@ -678,6 +745,9 @@ class zcl_slpm_dpc_ext implementation.
     try.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         er_entity = lo_slpm_data_provider->create_problem( er_entity ).
 
@@ -706,6 +776,9 @@ class zcl_slpm_dpc_ext implementation.
     try.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         lt_priorities = lo_slpm_data_provider->get_all_priorities(  ).
 
@@ -761,6 +834,9 @@ class zcl_slpm_dpc_ext implementation.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
         er_entity = lo_slpm_data_provider->update_problem(
         exporting
          ip_guid = lv_guid
@@ -789,6 +865,9 @@ class zcl_slpm_dpc_ext implementation.
 
     try.
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         et_entityset = cond #(
             when lv_status is initial then lo_slpm_data_provider->get_all_statuses(  )
@@ -836,12 +915,19 @@ class zcl_slpm_dpc_ext implementation.
   method systemuserset_get_entityset.
 
     data:
-      lo_system_user type ref to zif_system_user,
-      lo_slpm_user   type ref to zif_slpm_user,
-      ls_entity      like line of et_entityset,
-      ls_company     type zslpm_ts_company.
+      lo_system_user        type ref to zif_system_user,
+      lo_slpm_user          type ref to zif_slpm_user,
+      ls_entity             like line of et_entityset,
+      ls_company            type zslpm_ts_company,
+      lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     try.
+
+        " Validation of SLPM OData request
+
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         lo_slpm_user = new zcl_slpm_user( sy-uname ).
 
@@ -867,7 +953,8 @@ class zcl_slpm_dpc_ext implementation.
 
         append ls_entity to et_entityset.
 
-      catch zcx_system_user_exc into data(lcx_process_exception).
+      catch zcx_slpm_odata_exc zcx_system_user_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
+        zcx_assistant_utilities_exc zcx_slpm_configuration_exc into data(lcx_process_exception).
 
         raise_exception( lcx_process_exception->get_text(  ) ).
 
@@ -882,6 +969,9 @@ class zcl_slpm_dpc_ext implementation.
     try.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         et_entityset = lo_slpm_data_provider->get_list_of_processors(  ).
 
@@ -901,6 +991,9 @@ class zcl_slpm_dpc_ext implementation.
     try.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         et_entityset = lo_slpm_data_provider->get_list_of_companies(  ).
 
@@ -933,6 +1026,9 @@ class zcl_slpm_dpc_ext implementation.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
         et_entityset = lo_slpm_data_provider->get_frontend_configuration( lv_application ).
 
       catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
@@ -950,7 +1046,8 @@ class zcl_slpm_dpc_ext implementation.
     data:
       ls_entity             like line of et_entityset,
       lo_slpm_customer      type ref to zif_slpm_customer,
-      lv_filter_customer_bp type bu_partner.
+      lv_filter_customer_bp type bu_partner,
+      lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     " Providing all systems of a SLPM customer
 
@@ -963,6 +1060,12 @@ class zcl_slpm_dpc_ext implementation.
 
 
     try.
+
+        " Validation of SLPM OData request
+
+        lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
         if lv_filter_customer_bp is not initial.
 
@@ -997,6 +1100,9 @@ class zcl_slpm_dpc_ext implementation.
 
           lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+          " Validation of SLPM OData request
+          me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
           et_entityset = lo_slpm_data_provider->get_problem_sla_irt_history( exporting
               ip_guid = lv_guid ).
 
@@ -1028,6 +1134,9 @@ class zcl_slpm_dpc_ext implementation.
 
           lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+          " Validation of SLPM OData request
+          me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
           et_entityset = lo_slpm_data_provider->get_problem_sla_mpt_history( exporting
               ip_guid = lv_guid ).
 
@@ -1046,7 +1155,9 @@ class zcl_slpm_dpc_ext implementation.
   method problemhistory02_get_entityset.
 
     data: lv_guid                       type crmt_object_guid,
-          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store.
+          lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store,
+          lo_slpm_data_provider         type ref to zif_slpm_data_manager.
+
 
     read table it_key_tab into data(ls_key_tab) with key name = 'Guid'.
 
@@ -1055,6 +1166,12 @@ class zcl_slpm_dpc_ext implementation.
     if lv_guid is not initial.
 
       try.
+
+          " Validation of SLPM OData request
+
+          lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+          me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
           lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( lv_guid ).
 
@@ -1081,6 +1198,9 @@ class zcl_slpm_dpc_ext implementation.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
         et_entityset = lo_slpm_data_provider->get_list_of_support_teams( ).
 
       catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
@@ -1100,6 +1220,9 @@ class zcl_slpm_dpc_ext implementation.
 
         lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
+        " Validation of SLPM OData request
+        me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+
         et_entityset = lo_slpm_data_provider->get_frontend_constants(  ).
 
       catch zcx_slpm_odata_exc zcx_crm_order_api_exc zcx_slpm_data_manager_exc
@@ -1118,7 +1241,8 @@ class zcl_slpm_dpc_ext implementation.
           lo_slpm_problem_history_store type ref to zif_slpm_problem_history_store,
           lt_filter_status              type /iwbep/t_cod_select_options,
           lt_filter_processorname       type /iwbep/t_cod_select_options,
-          lt_entityset                  type zcl_slpm_mpc=>tt_problemflowstatistics.
+          lt_entityset                  type zcl_slpm_mpc=>tt_problemflowstatistics,
+          lo_slpm_data_provider         type ref to zif_slpm_data_manager.
 
 
     lt_filter_status = get_filter_select_options( io_tech_request_context  = io_tech_request_context
@@ -1134,6 +1258,12 @@ class zcl_slpm_dpc_ext implementation.
     if lv_guid is not initial.
 
       try.
+
+          " Validation of SLPM OData request
+
+          lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
+
+          me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
           lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( lv_guid ).
 
@@ -1156,6 +1286,26 @@ class zcl_slpm_dpc_ext implementation.
 
     endif.
 
+
+  endmethod.
+
+  method is_valid_slpm_odata_request.
+
+    data: lo_slpm_odata_request type ref to zcl_slpm_odata_request.
+
+    lo_slpm_odata_request = new zcl_slpm_odata_request(
+        io_request_details = me->mr_request_details
+        io_slpm_data_provider = io_slpm_data_provider ).
+
+    " Checking if a client is secure
+
+    if ( lo_slpm_odata_request->zif_slpm_odata_request~is_client_secure( ) eq abap_false ).
+
+      raise exception type zcx_slpm_odata_exc
+        exporting
+          textid = zcx_slpm_odata_exc=>client_not_supported.
+
+    endif.
 
   endmethod.
 

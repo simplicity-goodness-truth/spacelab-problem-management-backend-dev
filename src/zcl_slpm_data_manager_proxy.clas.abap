@@ -20,6 +20,11 @@ class zcl_slpm_data_manager_proxy definition
              replacement type string,
            end of ty_text_vulnerabilities_list.
 
+    types: begin of ty_statuses_for_sla_shift,
+             statusin  type j_estat,
+             statusout type j_estat,
+           end of ty_statuses_for_sla_shift.
+
     data:
       mo_slpm_data_provider        type ref to zif_slpm_data_manager,
       mo_active_configuration      type ref to zif_slpm_configuration,
@@ -30,8 +35,11 @@ class zcl_slpm_data_manager_proxy definition
       mv_app_log_subobject         type balsubobj,
       mt_text_vulnerabilities_list type table of ty_text_vulnerabilities_list,
       mt_problem_observers         type standard table of ref to zif_slpm_problem_observer,
-      "mo_slpm_cache_controller     type ref to zif_cache
-      mo_slpm_cache_controller     type ref to zif_slpm_problem_cache.
+      mo_slpm_cache_controller     type ref to zif_slpm_problem_cache,
+      mt_statuses_for_irt_recalc   type table of ty_statuses_for_sla_shift,
+      mt_statuses_for_irt_store    type table of ty_statuses_for_sla_shift,
+      mt_statuses_for_mpt_recalc   type table of ty_statuses_for_sla_shift,
+      mt_statuses_for_mpt_store    type table of ty_statuses_for_sla_shift.
 
     methods:
 
@@ -208,7 +216,16 @@ class zcl_slpm_data_manager_proxy definition
         changing
           cs_problem type zcrm_order_ts_sl_problem
         raising
-          zcx_slpm_configuration_exc.
+          zcx_slpm_configuration_exc,
+
+      set_statuses_for_mpt_recalc,
+
+      set_statuses_for_irt_recalc,
+
+      set_statuses_for_mpt_store,
+
+      set_statuses_for_irt_store.
+
 
 
 endclass.
@@ -292,6 +309,48 @@ class zcl_slpm_data_manager_proxy implementation.
           update scapptseg set
               tst_from =  lv_stored_irt_timestamp
               tst_to = lv_stored_irt_timestamp
+          where
+              appt_guid = lv_appt_guid.
+
+        endif.
+
+      endif.
+
+    endselect.
+
+  endmethod.
+
+
+  method adjust_scapptseg_mpt.
+
+    data:
+      lv_mpt_update_timestamp    type timestamp,
+      lv_mpt_update_timezone     type timezone,
+      lv_stored_mpt_timestamp    type timestamp,
+      lv_stored_mpt_timezone     type timezone,
+      lv_appt_guid               type sc_aptguid,
+      lv_scapptseg_mpt_timestamp type timestamp,
+      lv_scapptseg_mpt_timezone  type timezone.
+
+    " Taking last stored IRT SLA
+
+    select update_timestamp update_timezone mpttimestamp mpttimezone apptguid
+      from zslpm_mpt_hist
+      into (lv_mpt_update_timestamp, lv_mpt_update_timezone, lv_stored_mpt_timestamp, lv_stored_mpt_timezone, lv_appt_guid)
+      up to 1 rows
+      where problemguid = ip_guid order by update_timestamp descending.
+
+      if sy-subrc eq 0.
+
+        select single tst_from zone_from into ( lv_scapptseg_mpt_timestamp, lv_scapptseg_mpt_timezone )
+            from scapptseg
+            where appt_guid = lv_appt_guid.
+
+        if lv_stored_mpt_timestamp > lv_scapptseg_mpt_timestamp.
+
+          update scapptseg set
+              tst_from =  lv_stored_mpt_timestamp
+              tst_to = lv_stored_mpt_timestamp
           where
               appt_guid = lv_appt_guid.
 
@@ -483,6 +542,14 @@ class zcl_slpm_data_manager_proxy implementation.
 
     me->set_slpm_cache_controller(  ).
 
+    me->set_statuses_for_irt_recalc(  ).
+
+    me->set_statuses_for_mpt_recalc(  ).
+
+    me->set_statuses_for_irt_store(  ).
+
+    me->set_statuses_for_mpt_store(  ).
+
 
   endmethod.
 
@@ -508,6 +575,31 @@ class zcl_slpm_data_manager_proxy implementation.
 
     endif.
 
+
+  endmethod.
+
+
+  method fill_extra_fields_for_update.
+
+    data:
+             lo_problem_processor type ref to zif_slpm_problem_processor.
+
+    if ( cs_problem-processorbusinesspartner eq '0000000000').
+
+      cs_problem-supportteambusinesspartner = '0000000000'.
+
+    endif.
+
+    " Setting Support Team
+
+    if ( cs_problem-processorbusinesspartner is not initial ) and
+        ( cs_problem-processorbusinesspartner ne '0000000000').
+
+      lo_problem_processor = new zcl_slpm_problem_processor( cs_problem-processorbusinesspartner ).
+
+      cs_problem-supportteambusinesspartner = lo_problem_processor->get_support_team_bp( ).
+
+    endif.
 
   endmethod.
 
@@ -720,34 +812,9 @@ class zcl_slpm_data_manager_proxy implementation.
 
     endif.
 
-    " Storing MPT SLA when switch to 'Customer Action' and 'Solution Proposed' are done
+    " Storing MPT and IRT SLAs for specific statuses
 
-    if ( is_problem_old_state-status = 'E0002' and is_problem_new_state-status = 'E0003' ) or
-        ( is_problem_old_state-status = 'E0002' and is_problem_new_state-status = 'E0005' ).
-
-      lv_method_name = |STORE_MPT_SLA|.
-
-      ls_method-method_name = lv_method_name.
-
-      clear lt_method_params.
-      lt_method_params = corresponding #( lt_common_params ).
-
-      lt_specific_params = value #(
-         ( name = 'IP_MPT_PERC' value = ref #( is_problem_new_state-mpt_perc ) kind = cl_abap_objectdescr=>exporting )
-        ).
-
-      insert lines of lt_specific_params into table lt_method_params.
-
-      ls_method-parameters = lt_method_params.
-
-      append ls_method to lt_methods_list.
-
-    endif.
-
-    " When status is changed from 'Information Requested' to 'In approval'
-    " we need to store IRT and MPT SLA timestamps
-
-    if ( is_problem_old_state-status = 'E0016' and is_problem_new_state-status = 'E0017' ).
+    if line_exists( mt_statuses_for_irt_store[ statusin = is_problem_old_state-status statusout = is_problem_new_state-status ] ).
 
       if ( mo_active_configuration->get_parameter_value( 'SHIFT_IRT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
 
@@ -771,32 +838,45 @@ class zcl_slpm_data_manager_proxy implementation.
 
         endif.
 
-        lv_method_name = |STORE_MPT_SLA|.
+      endif.
 
-        ls_method-method_name = lv_method_name.
+    endif.
 
-        clear lt_method_params.
-        lt_method_params = corresponding #( lt_common_params ).
+    if line_exists( mt_statuses_for_mpt_store[ statusin = is_problem_old_state-status statusout = is_problem_new_state-status ] ).
 
-        lt_specific_params = value #(
-             ( name = 'IP_MPT_PERC' value = ref #( is_problem_new_state-mpt_perc ) kind = cl_abap_objectdescr=>exporting )
-         ).
+      if ( mo_active_configuration->get_parameter_value( 'SHIFT_MPT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
 
-        insert lines of lt_specific_params into table lt_method_params.
+        " Storing of IRT SLA happens only if MPT SLA is not overdue
+        if ( is_problem_new_state-mpt_icon_bsp eq 'NOTDUE').
 
-        ls_method-parameters = lt_method_params.
-        append ls_method to lt_methods_list.
+          lv_method_name = |STORE_MPT_SLA|.
+          ls_method-method_name = lv_method_name.
+
+          clear lt_method_params.
+          lt_method_params = corresponding #( lt_common_params ).
+
+          lt_specific_params = value #(
+                     ( name = 'IP_MPT_PERC' value = ref #( is_problem_new_state-mpt_perc ) kind = cl_abap_objectdescr=>exporting )
+                 ).
+
+          insert lines of lt_specific_params into table lt_method_params.
+
+          ls_method-parameters = lt_method_params.
+          append ls_method to lt_methods_list.
+
+        endif.
 
       endif.
 
     endif.
 
-    if ( is_problem_old_state-status = 'E0017' and is_problem_new_state-status = 'E0016' ).
+    " Recalculations for IRT and MPT SLAs
 
-      " Recalculation will be done only if IRT is not overdue
+    if line_exists( mt_statuses_for_irt_recalc[ statusin = is_problem_old_state-status statusout = is_problem_new_state-status ] ).
 
-      if ( mo_active_configuration->get_parameter_value( 'SHIFT_IRT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X') and
-        ( is_problem_new_state-irt_icon_bsp eq 'NOTDUE').
+      if ( mo_active_configuration->get_parameter_value( 'SHIFT_IRT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
+        "and
+        " ( is_problem_new_state-irt_icon_bsp eq 'NOTDUE').
 
         lv_method_name = |RECALC_IRT_SLA|.
 
@@ -824,10 +904,13 @@ class zcl_slpm_data_manager_proxy implementation.
 
       endif.
 
-      " Recalculation will be done only if MPT is not overdue
+    endif.
 
-      if ( mo_active_configuration->get_parameter_value( 'SHIFT_MPT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X') and
-        ( is_problem_new_state-irt_icon_bsp eq 'NOTDUE').
+    if line_exists( mt_statuses_for_mpt_recalc[ statusin = is_problem_old_state-status statusout = is_problem_new_state-status ] ).
+
+      if ( mo_active_configuration->get_parameter_value( 'SHIFT_MPT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
+        "and
+        "( is_problem_new_state-mpt_icon_bsp eq 'NOTDUE').
 
         lv_method_name = |RECALC_MPT_SLA|.
 
@@ -1032,6 +1115,102 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method recalc_mpt_sla.
+
+    data:lv_difference_in_seconds      type integer,
+         lv_timestamp_of_status_switch type timestamp,
+         lv_mpt_update_timestamp       type timestamp,
+         lv_mpt_update_timezone        type timezone,
+         lv_old_mpt_timestamp          type timestamp,
+         lv_old_mpt_timezone           type timezone,
+         lv_new_mpt_timestamp          type timestamp,
+         lv_new_mpt_timezone           type timezone,
+         lv_appt_guid                  type sc_aptguid,
+         lo_serv_profile_date_calc     type ref to zif_serv_profile,
+         lv_avail_profile_name         type char258,
+         lv_time                       type sy-uzeit,
+         lv_date                       type sy-datum,
+         lv_system_timezone            type timezone,
+         ls_zslpm_mpt_hist             type zslpm_mpt_hist.
+
+    " Taking a timestamp when we switched back from 'Information Requested
+
+    get time stamp field lv_timestamp_of_status_switch.
+
+    " Taking last stored MPT SLA
+
+    select  update_timestamp update_timezone mpttimestamp mpttimezone apptguid
+        from zslpm_mpt_hist
+        into (lv_mpt_update_timestamp, lv_mpt_update_timezone, lv_old_mpt_timestamp, lv_old_mpt_timezone, lv_appt_guid)
+       up to 1 rows
+         where problemguid = ip_guid order by update_timestamp descending.
+
+    endselect.
+
+    if sy-subrc eq 0.
+
+      " Calculating difference between movement from 'On Approval' to 'Information Requested' and backwards
+
+      lv_difference_in_seconds = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+       exporting
+           ip_timestamp_1 = lv_mpt_update_timestamp
+           ip_timestamp_2 = lv_timestamp_of_status_switch ).
+
+      " Calculating new value for IRT and storing it
+
+      lv_avail_profile_name = ip_avail_profile_name.
+
+      lo_serv_profile_date_calc = new zcl_serv_profile( lv_avail_profile_name  ).
+
+      zcl_assistant_utilities=>get_date_time_from_timestamp(
+        exporting
+            ip_timestamp = lv_old_mpt_timestamp
+            importing
+            ep_date = lv_date
+            ep_time = lv_time ).
+
+      lo_serv_profile_date_calc->add_seconds_to_date(
+        exporting
+            ip_added_seconds_total = lv_difference_in_seconds
+            ip_date_from = lv_date
+            ip_time_from = lv_time
+        importing
+            ep_sla_date = lv_date
+            ep_sla_time = lv_time ).
+
+      lv_system_timezone =  zcl_assistant_utilities=>get_system_timezone(  ).
+
+      convert date lv_date time lv_time into time stamp lv_new_mpt_timestamp time zone lv_system_timezone.
+
+      update scapptseg set
+          tst_from =  lv_new_mpt_timestamp
+          tst_to = lv_new_mpt_timestamp
+      where
+          appt_guid = lv_appt_guid.
+
+      " Storing for further internal usage
+
+      ls_zslpm_mpt_hist-mpttimestamp = lv_new_mpt_timestamp.
+      ls_zslpm_mpt_hist-mpttimezone = lv_system_timezone.
+      ls_zslpm_mpt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
+      ls_zslpm_mpt_hist-apptguid = lv_appt_guid.
+      ls_zslpm_mpt_hist-problemguid = ip_guid.
+      get time stamp field ls_zslpm_mpt_hist-update_timestamp.
+      ls_zslpm_mpt_hist-mptperc = ip_mpt_perc.
+      ls_zslpm_mpt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
+      ls_zslpm_mpt_hist-statusin = ip_statusin.
+      ls_zslpm_mpt_hist-statusout = ip_statusout.
+      ls_zslpm_mpt_hist-priorityin = ip_priorityin.
+      ls_zslpm_mpt_hist-priorityout = ip_priorityout.
+      ls_zslpm_mpt_hist-username = sy-uname.
+
+      insert zslpm_mpt_hist from ls_zslpm_mpt_hist.
+
+    endif.
+
+  endmethod.
+
+
   method set_app_logger.
 
     mv_app_log_object = mo_active_configuration->get_parameter_value( 'APP_LOG_OBJECT' ).
@@ -1054,6 +1233,30 @@ class zcl_slpm_data_manager_proxy implementation.
 
     endif.
 
+
+  endmethod.
+
+
+  method set_statuses_for_irt_recalc.
+
+    mt_statuses_for_irt_recalc = value #(
+
+    ( statusin = 'E0017' statusout = 'E0016' )
+
+    ).
+
+  endmethod.
+
+
+  method set_statuses_for_mpt_recalc.
+
+    mt_statuses_for_mpt_recalc = value #(
+
+    ( statusin = 'E0017' statusout = 'E0016' )
+    ( statusin = 'E0003' statusout = 'E0002' )
+    ( statusin = 'E0005' statusout = 'E0002' )
+
+    ).
 
   endmethod.
 
@@ -1496,6 +1699,17 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method zif_slpm_data_manager~get_frontend_constants.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_constants = mo_slpm_data_provider->get_frontend_constants( ).
+
+    endif.
+
+  endmethod.
+
+
   method zif_slpm_data_manager~get_last_text.
 
     if mo_slpm_data_provider is bound.
@@ -1623,6 +1837,17 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method zif_slpm_data_manager~is_status_a_customer_action.
+
+    if mo_slpm_data_provider is bound.
+
+      rp_customer_action = mo_slpm_data_provider->is_status_a_customer_action( ip_status ).
+
+    endif.
+
+  endmethod.
+
+
   method zif_slpm_data_manager~update_problem.
 
     data: ls_problem_old_state          type zcrm_order_ts_sl_problem,
@@ -1738,183 +1963,61 @@ class zcl_slpm_data_manager_proxy implementation.
 
   endmethod.
 
-  method recalc_mpt_sla.
+  method set_statuses_for_mpt_store.
 
-    data:lv_difference_in_seconds      type integer,
-         lv_timestamp_of_status_switch type timestamp,
-         lv_mpt_update_timestamp       type timestamp,
-         lv_mpt_update_timezone        type timezone,
-         lv_old_mpt_timestamp          type timestamp,
-         lv_old_mpt_timezone           type timezone,
-         lv_new_mpt_timestamp          type timestamp,
-         lv_new_mpt_timezone           type timezone,
-         lv_appt_guid                  type sc_aptguid,
-         lo_serv_profile_date_calc     type ref to zif_serv_profile,
-         lv_avail_profile_name         type char258,
-         lv_time                       type sy-uzeit,
-         lv_date                       type sy-datum,
-         lv_system_timezone            type timezone,
-         ls_zslpm_mpt_hist             type zslpm_mpt_hist.
+    mt_statuses_for_mpt_store = value #(
 
-    " Taking a timestamp when we switched back from 'Information Requested
+    ( statusin = 'E0016' statusout = 'E0017' )
+    ( statusin = 'E0002' statusout = 'E0003' )
+    ( statusin = 'E0002' statusout = 'E0005' )
 
-    get time stamp field lv_timestamp_of_status_switch.
+    ).
 
-    " Taking last stored MPT SLA
-
-    select  update_timestamp update_timezone mpttimestamp mpttimezone apptguid
-        from zslpm_mpt_hist
-        into (lv_mpt_update_timestamp, lv_mpt_update_timezone, lv_old_mpt_timestamp, lv_old_mpt_timezone, lv_appt_guid)
-       up to 1 rows
-         where problemguid = ip_guid order by update_timestamp descending.
-
-    endselect.
-
-    if sy-subrc eq 0.
-
-      " Calculating difference between movement from 'On Approval' to 'Information Requested' and backwards
-
-      lv_difference_in_seconds = zcl_assistant_utilities=>calc_duration_btw_timestamps(
-       exporting
-           ip_timestamp_1 = lv_mpt_update_timestamp
-           ip_timestamp_2 = lv_timestamp_of_status_switch ).
-
-      " Calculating new value for IRT and storing it
-
-      lv_avail_profile_name = ip_avail_profile_name.
-
-      lo_serv_profile_date_calc = new zcl_serv_profile( lv_avail_profile_name  ).
-
-      zcl_assistant_utilities=>get_date_time_from_timestamp(
-        exporting
-            ip_timestamp = lv_old_mpt_timestamp
-            importing
-            ep_date = lv_date
-            ep_time = lv_time ).
-
-      lo_serv_profile_date_calc->add_seconds_to_date(
-        exporting
-            ip_added_seconds_total = lv_difference_in_seconds
-            ip_date_from = lv_date
-            ip_time_from = lv_time
-        importing
-            ep_sla_date = lv_date
-            ep_sla_time = lv_time ).
-
-      lv_system_timezone =  zcl_assistant_utilities=>get_system_timezone(  ).
-
-      convert date lv_date time lv_time into time stamp lv_new_mpt_timestamp time zone lv_system_timezone.
-
-      update scapptseg set
-          tst_from =  lv_new_mpt_timestamp
-          tst_to = lv_new_mpt_timestamp
-      where
-          appt_guid = lv_appt_guid.
-
-      " Storing for further internal usage
-
-      ls_zslpm_mpt_hist-mpttimestamp = lv_new_mpt_timestamp.
-      ls_zslpm_mpt_hist-mpttimezone = lv_system_timezone.
-      ls_zslpm_mpt_hist-guid = zcl_assistant_utilities=>generate_x16_guid(  ).
-      ls_zslpm_mpt_hist-apptguid = lv_appt_guid.
-      ls_zslpm_mpt_hist-problemguid = ip_guid.
-      get time stamp field ls_zslpm_mpt_hist-update_timestamp.
-      ls_zslpm_mpt_hist-mptperc = ip_mpt_perc.
-      ls_zslpm_mpt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
-      ls_zslpm_mpt_hist-statusin = ip_statusin.
-      ls_zslpm_mpt_hist-statusout = ip_statusout.
-      ls_zslpm_mpt_hist-priorityin = ip_priorityin.
-      ls_zslpm_mpt_hist-priorityout = ip_priorityout.
-      ls_zslpm_mpt_hist-username = sy-uname.
-
-      insert zslpm_mpt_hist from ls_zslpm_mpt_hist.
-
-    endif.
 
   endmethod.
 
-  method adjust_scapptseg_mpt.
+  method set_statuses_for_irt_store.
 
-    data:
-      lv_mpt_update_timestamp    type timestamp,
-      lv_mpt_update_timezone     type timezone,
-      lv_stored_mpt_timestamp    type timestamp,
-      lv_stored_mpt_timezone     type timezone,
-      lv_appt_guid               type sc_aptguid,
-      lv_scapptseg_mpt_timestamp type timestamp,
-      lv_scapptseg_mpt_timezone  type timezone.
+    mt_statuses_for_irt_store = value #(
 
-    " Taking last stored IRT SLA
+    ( statusin = 'E0016' statusout = 'E0017' )
 
-    select update_timestamp update_timezone mpttimestamp mpttimezone apptguid
-      from zslpm_mpt_hist
-      into (lv_mpt_update_timestamp, lv_mpt_update_timezone, lv_stored_mpt_timestamp, lv_stored_mpt_timezone, lv_appt_guid)
-      up to 1 rows
-      where problemguid = ip_guid order by update_timestamp descending.
-
-      if sy-subrc eq 0.
-
-        select single tst_from zone_from into ( lv_scapptseg_mpt_timestamp, lv_scapptseg_mpt_timezone )
-            from scapptseg
-            where appt_guid = lv_appt_guid.
-
-        if lv_stored_mpt_timestamp > lv_scapptseg_mpt_timestamp.
-
-          update scapptseg set
-              tst_from =  lv_stored_mpt_timestamp
-              tst_to = lv_stored_mpt_timestamp
-          where
-              appt_guid = lv_appt_guid.
-
-        endif.
-
-      endif.
-
-    endselect.
+    ).
 
   endmethod.
 
-  method zif_slpm_data_manager~get_frontend_constants.
+  method zif_slpm_data_manager~is_status_a_final_status.
 
     if mo_slpm_data_provider is bound.
 
-      rt_constants = mo_slpm_data_provider->get_frontend_constants( ).
+      rp_final_status = mo_slpm_data_provider->is_status_a_final_status( ip_status ).
 
     endif.
+
 
   endmethod.
 
-  method fill_extra_fields_for_update.
+  method zif_slpm_data_manager~get_final_status_codes.
 
-    data:
-             lo_problem_processor type ref to zif_slpm_problem_processor.
-
-    if ( cs_problem-processorbusinesspartner eq '0000000000').
-
-      cs_problem-supportteambusinesspartner = '0000000000'.
-
-    endif.
-
-    " Setting Support Team
-
-    if ( cs_problem-processorbusinesspartner is not initial ) and
-        ( cs_problem-processorbusinesspartner ne '0000000000').
-
-      lo_problem_processor = new zcl_slpm_problem_processor( cs_problem-processorbusinesspartner ).
-
-      cs_problem-supportteambusinesspartner = lo_problem_processor->get_support_team_bp( ).
-
-    endif.
-
-  endmethod.
-
-  method zif_slpm_data_manager~is_status_a_customer_action.
 
     if mo_slpm_data_provider is bound.
 
-      rp_customer_action = mo_slpm_data_provider->is_status_a_customer_action( ip_status ).
+      rt_final_status_codes = mo_slpm_data_provider->get_final_status_codes( ).
 
     endif.
+
+  endmethod.
+
+
+
+  method zif_slpm_data_manager~get_active_configuration.
+
+    if mo_slpm_data_provider is bound.
+
+      ro_active_configuration = mo_slpm_data_provider->get_active_configuration( ).
+
+    endif.
+
 
   endmethod.
 

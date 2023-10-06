@@ -20,6 +20,12 @@
      <MSGNR>001</MSGNR>
      <TEXT>OData: Filter value not provided for entity &amp;1</TEXT>
     </T100>
+    <T100>
+     <SPRSL>E</SPRSL>
+     <ARBGB>ZSLPM_ODATA</ARBGB>
+     <MSGNR>002</MSGNR>
+     <TEXT>OData: Client not supported</TEXT>
+    </T100>
    </T100>
   </asx:values>
  </asx:abap>
