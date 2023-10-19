@@ -494,8 +494,8 @@ class zcl_slpm_prob_change_notifier implementation.
 
         ( name = 'DESCRIPTION' translation = 'Название/тема' internal = '' )
         ( name = 'OBJECTID' translation = 'Номер' internal = '' )
-        ( name = 'PRIORITYTEXT' translation = 'Приоритет' internal = '' )
-        ( name = 'PRODUCTTEXT' translation = 'Тип сервиса' internal = '' )
+        "( name = 'PRIORITYTEXT' translation = 'Приоритет' internal = '' )
+        ( name = 'PRODUCTTEXT' translation = 'Вид сервиса' internal = '' )
         ( name = 'REQUESTORFULLNAME' translation = 'Автор' internal = '' )
         ( name = 'CREATED_AT' translation = 'Дата создания (временная зона системы)' internal = '' )
         ( name = 'PROCESSORFULLNAME' translation = 'Обработчик' internal = 'X' )
@@ -503,6 +503,19 @@ class zcl_slpm_prob_change_notifier implementation.
         ( name = 'MPT_TIMESTAMP' translation = 'Максимальное время обработки' internal = 'X' )
         ( name = 'COMPANYNAME' translation = 'Компания автора' internal = 'X' )
     ).
+
+    " Priority should be set only in a case,
+    " when priority is not hidden for a product
+
+    if mo_slpm_product is not initial.
+
+      if mo_slpm_product->is_show_priority_set( ).
+
+        append value #( name = 'PRIORITYTEXT' translation = 'Приоритет' internal = '' ) to lt_fields_to_fill.
+
+      endif.
+
+    endif.
 
     lt_fields_to_replace = value #(
 

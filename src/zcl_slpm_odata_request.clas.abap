@@ -126,6 +126,8 @@ class zcl_slpm_odata_request implementation.
 
       append wa_http_headers_filter to mt_http_headers_filter.
 
+      clear wa_http_filters.
+
     endloop.
 
   endmethod.

@@ -59,9 +59,21 @@ class zcl_http_request implementation.
 
         catch cx_sy_itab_line_not_found.
 
-          rp_aligned = abap_false.
+          " If we don't have a header filter key in a real header,
+          " then we need to check, if just a single exclusion was asked.
+          " If a single exclusion of a value was asked, then we have to
+          " permit the header (if we don't have this header in real, then
+          " 100% we are already excluding what was asked to be
+          " excluded).
 
-          exit.
+          if not ( ( lines( <fs_filter>-filter ) eq 1 ) and
+            ( <fs_filter>-filter[ 1 ]-sign eq 'E' ) ).
+
+            rp_aligned = abap_false.
+
+            exit.
+
+          endif.
 
       endtry.
 
