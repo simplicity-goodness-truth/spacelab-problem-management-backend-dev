@@ -1,6 +1,24 @@
 *---------------------------------------------------------------------*
 *    view related data declarations
 *---------------------------------------------------------------------*
+*...processing: ZCRMOAUTOSTATVW.................................*
+TABLES: ZCRMOAUTOSTATVW, *ZCRMOAUTOSTATVW. "view work areas
+CONTROLS: TCTRL_ZCRMOAUTOSTATVW
+TYPE TABLEVIEW USING SCREEN '0085'.
+DATA: BEGIN OF STATUS_ZCRMOAUTOSTATVW. "state vector
+          INCLUDE STRUCTURE VIMSTATUS.
+DATA: END OF STATUS_ZCRMOAUTOSTATVW.
+* Table for entries selected to show on screen
+DATA: BEGIN OF ZCRMOAUTOSTATVW_EXTRACT OCCURS 0010.
+INCLUDE STRUCTURE ZCRMOAUTOSTATVW.
+          INCLUDE STRUCTURE VIMFLAGTAB.
+DATA: END OF ZCRMOAUTOSTATVW_EXTRACT.
+* Table for all entries loaded from database
+DATA: BEGIN OF ZCRMOAUTOSTATVW_TOTAL OCCURS 0010.
+INCLUDE STRUCTURE ZCRMOAUTOSTATVW.
+          INCLUDE STRUCTURE VIMFLAGTAB.
+DATA: END OF ZCRMOAUTOSTATVW_TOTAL.
+
 *...processing: ZCRMOSLAESCALVW.................................*
 TABLES: ZCRMOSLAESCALVW, *ZCRMOSLAESCALVW. "view work areas
 CONTROLS: TCTRL_ZCRMOSLAESCALVW
@@ -182,6 +200,7 @@ INCLUDE STRUCTURE ZSLPMSTATFLOWVW.
 DATA: END OF ZSLPMSTATFLOWVW_TOTAL.
 
 *.........table declarations:.................................*
+TABLES: ZCRMO_AUTO_STAT                .
 TABLES: ZCRMO_SLA_ESCAL                .
 TABLES: ZSLPM_CUST_PROD                .
 TABLES: ZSLPM_CUST_SYST                .

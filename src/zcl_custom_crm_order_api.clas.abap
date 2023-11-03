@@ -619,7 +619,7 @@ class zcl_custom_crm_order_api implementation.
 
 
 
-  "  lo_cl_ags_crm_1o_api->get_service_products( importing et_orderadm_i = data(lt_product_data) ).
+    "  lo_cl_ags_crm_1o_api->get_service_products( importing et_orderadm_i = data(lt_product_data) ).
 
 
 
@@ -1570,7 +1570,15 @@ class zcl_custom_crm_order_api implementation.
 
     if me->mv_structure_name is initial.
 
-      me->mv_structure_name = ip_structure_name.
+      if ip_structure_name is not initial.
+
+        me->mv_structure_name = ip_structure_name.
+
+      else.
+
+        me->mv_structure_name = 'ZCRM_ORDER_TS'.
+
+      endif.
 
     endif.
 

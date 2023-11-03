@@ -3,10 +3,11 @@ interface zif_slpm_data_manager
 
   methods: get_problems_list
     importing
-      it_filters       type /iwbep/t_mgw_select_option optional
-      it_order         type /iwbep/t_mgw_sorting_order  optional
+      it_filters            type /iwbep/t_mgw_select_option optional
+      it_order              type /iwbep/t_mgw_sorting_order  optional
+      ip_exclude_exp_fields type abap_bool optional
     returning
-      value(et_result) type zcrm_order_tt_sl_problems
+      value(et_result)      type zcrm_order_tt_sl_problems
     raising
       zcx_crm_order_api_exc
       zcx_assistant_utilities_exc
@@ -15,10 +16,10 @@ interface zif_slpm_data_manager
 
     get_problem
       importing
-        ip_guid          type crmt_object_guid
-        " io_slpm_problem_api type ref to zcl_slpm_problem_api optional
+        ip_guid               type crmt_object_guid
+        ip_exclude_exp_fields type abap_bool optional
       returning
-        value(es_result) type zcrm_order_ts_sl_problem
+        value(es_result)      type zcrm_order_ts_sl_problem
       raising
         zcx_crm_order_api_exc
         zcx_assistant_utilities_exc

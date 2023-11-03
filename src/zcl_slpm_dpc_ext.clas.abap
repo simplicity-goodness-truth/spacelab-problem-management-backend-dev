@@ -138,7 +138,8 @@ class zcl_slpm_dpc_ext implementation.
         et_entityset = lo_slpm_data_provider->get_problems_list(
             exporting
             it_filters = lt_set_filters
-            it_order = it_order ).
+            it_order = it_order
+            ip_exclude_exp_fields = abap_true ).
 
       catch zcx_slpm_odata_exc zcx_slpm_data_manager_exc zcx_crm_order_api_exc
         zcx_assistant_utilities_exc zcx_slpm_configuration_exc

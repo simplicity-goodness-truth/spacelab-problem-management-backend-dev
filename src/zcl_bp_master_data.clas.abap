@@ -3,6 +3,7 @@ class zcl_bp_master_data definition
   create public .
 
   public section.
+
     interfaces: zif_contacts_book,
       zif_bp_master_data .
     methods constructor
@@ -11,8 +12,10 @@ class zcl_bp_master_data definition
 
   protected section.
   private section.
+
     data: mv_bp_num type bu_partner,
-          ms_but000 type but000.
+          ms_but000 type zif_bp_master_data~ty_ms_but000.
+    "ms_but000 type but000.
 
     methods: set_but000.
 
@@ -34,8 +37,13 @@ class zcl_bp_master_data implementation.
 
     if ( mv_bp_num is not initial ) and ( mv_bp_num ne '0000000000' ).
 
-      select single * into ms_but000 from but000
-       where partner eq mv_bp_num.
+*      select single * into ms_but000 from but000
+*       where partner eq mv_bp_num.
+
+      select single partner type name_org2 name_last
+        name_first name1_text persnumber mc_name1 addrcomm
+            into ms_but000 from but000
+            where partner eq mv_bp_num.
 
     endif.
 
@@ -48,12 +56,6 @@ class zcl_bp_master_data implementation.
       me->set_but000(  ).
 
     endif.
-
-*    rp_full_name = cond #(
-*          when ms_but000-name1_text is not initial then ms_but000-name1_text
-*          else |{ ms_but000-name_first }| && | | && |{ ms_but000-name_last }|
-*        ).
-
 
     rp_full_name = cond #(
         when ms_but000-type eq '1' then cond #(

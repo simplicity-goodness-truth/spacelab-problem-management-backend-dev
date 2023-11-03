@@ -20,10 +20,10 @@ class zcl_slpm_data_manager_proxy definition
              replacement type string,
            end of ty_text_vulnerabilities_list.
 
-    types: begin of ty_statuses_for_sla_shift,
-             statusin  type j_estat,
-             statusout type j_estat,
-           end of ty_statuses_for_sla_shift.
+*    types: begin of ty_statuses_for_sla_shift,
+*             statusin  type j_estat,
+*             statusout type j_estat,
+*           end of ty_statuses_for_sla_shift.
 
     data:
       mo_slpm_data_provider        type ref to zif_slpm_data_manager,
@@ -36,10 +36,12 @@ class zcl_slpm_data_manager_proxy definition
       mt_text_vulnerabilities_list type table of ty_text_vulnerabilities_list,
       mt_problem_observers         type standard table of ref to zif_slpm_problem_observer,
       mo_slpm_cache_controller     type ref to zif_slpm_problem_cache,
-      mt_statuses_for_irt_recalc   type table of ty_statuses_for_sla_shift,
-      mt_statuses_for_irt_store    type table of ty_statuses_for_sla_shift,
-      mt_statuses_for_mpt_recalc   type table of ty_statuses_for_sla_shift,
-      mt_statuses_for_mpt_store    type table of ty_statuses_for_sla_shift.
+      mt_statuses_for_irt_recalc   type zslpm_tt_status_pairs,
+      mt_statuses_for_irt_store    type zslpm_tt_status_pairs,
+      mt_statuses_for_mpt_recalc   type zslpm_tt_status_pairs,
+      mt_statuses_for_mpt_store    type zslpm_tt_status_pairs,
+      mo_slpm_sla_irt_hist         type ref to zif_slpm_sla_hist,
+      mo_slpm_sla_mpt_hist         type ref to zif_slpm_sla_hist.
 
     methods:
 
@@ -110,11 +112,11 @@ class zcl_slpm_data_manager_proxy definition
         importing
           ip_guid               type crmt_object_guid
           ip_avail_profile_name type srv_serwi
-          ip_irt_perc           type int4 optional
           ip_statusin           type char5
           ip_statusout          type char5
           ip_priorityin         type crmt_priority
           ip_priorityout        type crmt_priority
+          ip_created_at         type  comt_created_at_usr
         raising
           zcx_slpm_configuration_exc
           zcx_crm_order_api_exc,
@@ -199,11 +201,11 @@ class zcl_slpm_data_manager_proxy definition
         importing
           ip_guid               type crmt_object_guid
           ip_avail_profile_name type srv_serwi
-          ip_mpt_perc           type int4 optional
           ip_statusin           type char5
           ip_statusout          type char5
           ip_priorityin         type crmt_priority
           ip_priorityout        type crmt_priority
+          ip_created_at         type  comt_created_at_usr
         raising
           zcx_slpm_configuration_exc
           zcx_crm_order_api_exc,
@@ -224,9 +226,29 @@ class zcl_slpm_data_manager_proxy definition
 
       set_statuses_for_mpt_store,
 
-      set_statuses_for_irt_store.
+      set_statuses_for_irt_store,
 
+      set_slpm_sla_irt_hist
+        importing
+          ip_guid type crmt_object_guid,
 
+      set_slpm_sla_mpt_hist
+        importing
+          ip_guid type crmt_object_guid,
+
+      is_irt_overdue_before_store
+        importing
+          is_problem_old_state      type zcrm_order_ts_sl_problem
+          is_problem_new_state      type zcrm_order_ts_sl_problem
+        returning
+          value(rp_sla_irt_overdue) type abap_bool,
+
+      is_mpt_overdue_before_store
+        importing
+          is_problem_old_state      type zcrm_order_ts_sl_problem
+          is_problem_new_state      type zcrm_order_ts_sl_problem
+        returning
+          value(rp_sla_mpt_overdue) type abap_bool.
 
 endclass.
 
@@ -311,6 +333,8 @@ class zcl_slpm_data_manager_proxy implementation.
               tst_to = lv_stored_irt_timestamp
           where
               appt_guid = lv_appt_guid.
+
+          commit work.
 
         endif.
 
@@ -697,6 +721,48 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method is_irt_overdue_before_store.
+
+    data:
+      lv_timestamp_irt type sc_tstfro,
+      lv_timestamp_now type sc_tstfro,
+      lv_timezone_irt  type sc_zonefro,
+      lv_timezone_now  type sc_zonefro.
+
+    " We must consent, that this method can only be called, if we are in a status, which requires IRT SLA store!
+    " Basically the check for the proper status must happen in POST_UPDATE_EXTERNAL_ACTIONS before calling of this method
+    " In addition this method must only be called when IRT SLA is paused
+
+
+    " Getting current time stamp (now)
+
+    get time stamp field lv_timestamp_now.
+    lv_timezone_now = zcl_assistant_utilities=>get_system_timezone(  ).
+
+    " Getting data from SLA history: if there were any recalculations, then
+    " we should have a not empty history, and finally SLA timestamp from history should
+    " be equal to the one in standard implementation
+
+    mo_slpm_sla_irt_hist->get_last_sla_timestamp(
+        importing
+            ep_timestamp = lv_timestamp_irt
+            ep_timezone = lv_timezone_irt ).
+
+    if ( lv_timestamp_irt is initial ) and ( lv_timezone_irt is initial ).
+
+      lv_timestamp_irt = is_problem_new_state-irt_timestamp_utc.
+
+    endif.
+
+    if lv_timestamp_now ge lv_timestamp_irt.
+
+      rp_sla_irt_overdue = abap_true.
+
+    endif.
+
+  endmethod.
+
+
   method notify_observers_on_att_remove.
 
     loop at mt_problem_observers assigning field-symbol(<ms_observer>).
@@ -749,19 +815,30 @@ class zcl_slpm_data_manager_proxy implementation.
              parameters  type abap_parmbind_tab,
            end of ty_methods_list.
 
-    data: lv_method_name       type string,
-          lv_log_record_text   type string,
-          lt_method_params     type abap_parmbind_tab,
-          lt_common_params     type abap_parmbind_tab,
-          lt_specific_params   type abap_parmbind_tab,
-          lo_slpm_product      type ref to zif_crm_service_product,
-          lv_avail_profile     type srv_serwi,
-          lt_methods_list      type table of  ty_methods_list,
-          ls_method            type  ty_methods_list,
-          lv_system_timezone   type timezone,
-          lv_new_irt_timestamp type timestamp,
-          lv_appt_guid         type sc_aptguid.
+    data: lv_method_name                type string,
+          lv_log_record_text            type string,
+          lt_method_params              type abap_parmbind_tab,
+          lt_common_params              type abap_parmbind_tab,
+          lt_specific_params            type abap_parmbind_tab,
+          lo_slpm_product               type ref to zif_crm_service_product,
+          lv_avail_profile              type srv_serwi,
+          lt_methods_list               type table of  ty_methods_list,
+          ls_method                     type  ty_methods_list,
+          lv_system_timezone            type timezone,
+          lv_new_irt_timestamp          type timestamp,
+          lv_appt_guid                  type sc_aptguid,
+          lv_shift_irt_on_customer_stat type abap_bool,
+          lv_shift_mpt_on_customer_stat type abap_bool,
+          lv_shift_irt_only_not_due     type abap_bool,
+          lv_shift_mpt_only_not_due     type abap_bool.
 
+
+    " Getting SLA shifting parameters
+
+    lv_shift_irt_on_customer_stat = mo_active_configuration->get_parameter_value( 'SHIFT_IRT_ON_INFORMATION_REQUESTED_STAT' ).
+    lv_shift_mpt_on_customer_stat = mo_active_configuration->get_parameter_value( 'SHIFT_MPT_ON_INFORMATION_REQUESTED_STAT' ).
+    lv_shift_irt_only_not_due = mo_active_configuration->get_parameter_value( 'SHIFT_ONLY_NOT_DUE_IRT' ).
+    lv_shift_mpt_only_not_due = mo_active_configuration->get_parameter_value( 'SHIFT_ONLY_NOT_DUE_MPT' ).
 
     lt_common_params = value #(
                  ( name = 'IP_GUID' value = ref #( is_problem_new_state-guid ) kind = cl_abap_objectdescr=>exporting )
@@ -771,23 +848,18 @@ class zcl_slpm_data_manager_proxy implementation.
                  ( name = 'IP_PRIORITYOUT' value = ref #( is_problem_new_state-priority ) kind = cl_abap_objectdescr=>exporting )
              ).
 
-    " Funny thing!!!
-    " In our code we have to update scapptseg table to write shifted SLAs,
-    " because we cannot set appointments through CRM order API (it just doesn't save it :-( )
-    " However later somehow after each switch from 'In process' to 'Customer Action' OR from
-    " 'On approval' to 'Information requested' all changed records in scapptseg table
-    " ARE REVERTED BACK again to initial state!!! Don't know how and why it happens somewhere
-    " deep in CRM ITSM...
-    "
-    " Finally after each save we have to compare recent scapptseg table SLA value and
-    " those, which we stored in our custom tables. If scapptseg records were reverted,
-    " then we have to re-write it once again....
 
-    if  is_problem_old_state-status ne is_problem_new_state-status.
-      me->adjust_scapptseg_irt( is_problem_new_state-guid ).
-      me->adjust_scapptseg_mpt( is_problem_new_state-guid ).
-    endif.
+    " Initializing SLA history classes
 
+    me->set_slpm_sla_irt_hist( is_problem_new_state-guid ).
+    me->set_slpm_sla_mpt_hist( is_problem_new_state-guid ).
+
+*    if  is_problem_old_state-status ne is_problem_new_state-status.
+*
+*      me->adjust_scapptseg_irt( is_problem_new_state-guid ).
+*      me->adjust_scapptseg_mpt( is_problem_new_state-guid ).
+*
+*    endif.
 
     " Storing SLA if priority has been changed
 
@@ -816,10 +888,12 @@ class zcl_slpm_data_manager_proxy implementation.
 
     if line_exists( mt_statuses_for_irt_store[ statusin = is_problem_old_state-status statusout = is_problem_new_state-status ] ).
 
-      if ( mo_active_configuration->get_parameter_value( 'SHIFT_IRT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
+      if ( lv_shift_irt_on_customer_stat eq 'X').
 
-        " Storing of IRT SLA happens only if IRT SLA is not overdue
-        if ( is_problem_new_state-irt_icon_bsp eq 'NOTDUE').
+        if ( lv_shift_irt_only_not_due ne 'X' ) or
+        ( ( lv_shift_irt_only_not_due eq 'X' ) and
+            ( is_irt_overdue_before_store( is_problem_new_state = is_problem_new_state is_problem_old_state = is_problem_old_state )
+                eq abap_false ) ).
 
           lv_method_name = |STORE_IRT_SLA|.
           ls_method-method_name = lv_method_name.
@@ -828,7 +902,7 @@ class zcl_slpm_data_manager_proxy implementation.
           lt_method_params = corresponding #( lt_common_params ).
 
           lt_specific_params = value #(
-                     ( name = 'IP_IRT_PERC' value = ref #( is_problem_new_state-irt_perc ) kind = cl_abap_objectdescr=>exporting )
+                     ( name = 'IP_IRT_PERC' value = ref #( is_problem_old_state-irt_perc ) kind = cl_abap_objectdescr=>exporting )
                  ).
 
           insert lines of lt_specific_params into table lt_method_params.
@@ -844,10 +918,12 @@ class zcl_slpm_data_manager_proxy implementation.
 
     if line_exists( mt_statuses_for_mpt_store[ statusin = is_problem_old_state-status statusout = is_problem_new_state-status ] ).
 
-      if ( mo_active_configuration->get_parameter_value( 'SHIFT_MPT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
+      if ( lv_shift_mpt_on_customer_stat eq 'X').
 
-        " Storing of IRT SLA happens only if MPT SLA is not overdue
-        if ( is_problem_new_state-mpt_icon_bsp eq 'NOTDUE').
+        if ( lv_shift_mpt_only_not_due ne 'X' ) or
+               ( ( lv_shift_mpt_only_not_due eq 'X' ) and
+                   ( is_mpt_overdue_before_store( is_problem_new_state = is_problem_new_state is_problem_old_state = is_problem_old_state )
+                       eq abap_false ) ).
 
           lv_method_name = |STORE_MPT_SLA|.
           ls_method-method_name = lv_method_name.
@@ -856,7 +932,7 @@ class zcl_slpm_data_manager_proxy implementation.
           lt_method_params = corresponding #( lt_common_params ).
 
           lt_specific_params = value #(
-                     ( name = 'IP_MPT_PERC' value = ref #( is_problem_new_state-mpt_perc ) kind = cl_abap_objectdescr=>exporting )
+                     ( name = 'IP_MPT_PERC' value = ref #( is_problem_old_state-mpt_perc ) kind = cl_abap_objectdescr=>exporting )
                  ).
 
           insert lines of lt_specific_params into table lt_method_params.
@@ -874,9 +950,13 @@ class zcl_slpm_data_manager_proxy implementation.
 
     if line_exists( mt_statuses_for_irt_recalc[ statusin = is_problem_old_state-status statusout = is_problem_new_state-status ] ).
 
-      if ( mo_active_configuration->get_parameter_value( 'SHIFT_IRT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
-        "and
-        " ( is_problem_new_state-irt_icon_bsp eq 'NOTDUE').
+      " Recalculation should be always done, if we are in a sequence of corresponding statuses change
+      " and there was a previously stored record in IRT history, which means that we already awaiting
+      " a shift of SLA, as we saved IRT data previously
+
+      if ( lv_shift_irt_on_customer_stat eq 'X') and
+        ( mo_slpm_sla_irt_hist->is_there_pending_shift( is_problem_old_state-status ) eq abap_true ).
+
 
         lv_method_name = |RECALC_IRT_SLA|.
 
@@ -893,7 +973,7 @@ class zcl_slpm_data_manager_proxy implementation.
 
         lt_specific_params = value #(
              ( name = 'IP_AVAIL_PROFILE_NAME' value = ref #( lv_avail_profile ) kind = cl_abap_objectdescr=>exporting )
-             ( name = 'IP_IRT_PERC' value = ref #( is_problem_new_state-irt_perc ) kind = cl_abap_objectdescr=>exporting )
+             ( name = 'IP_CREATED_AT' value = ref #( is_problem_new_state-created_at ) kind = cl_abap_objectdescr=>exporting )
            ).
 
         insert lines of lt_specific_params into table lt_method_params.
@@ -908,9 +988,12 @@ class zcl_slpm_data_manager_proxy implementation.
 
     if line_exists( mt_statuses_for_mpt_recalc[ statusin = is_problem_old_state-status statusout = is_problem_new_state-status ] ).
 
-      if ( mo_active_configuration->get_parameter_value( 'SHIFT_MPT_ON_INFORMATION_REQUESTED_STAT' ) eq 'X').
-        "and
-        "( is_problem_new_state-mpt_icon_bsp eq 'NOTDUE').
+      " Recalculation should be always done, if we are in a sequence of corresponding statuses change
+      " and there was a previously stored record in MPT history, which means that we already awaiting
+      " a shift of SLA, as we saved IRT data previously
+
+      if ( lv_shift_mpt_on_customer_stat eq 'X') and
+        ( mo_slpm_sla_mpt_hist->is_there_pending_shift( is_problem_old_state-status ) eq abap_true ).
 
         lv_method_name = |RECALC_MPT_SLA|.
 
@@ -927,7 +1010,7 @@ class zcl_slpm_data_manager_proxy implementation.
 
         lt_specific_params = value #(
              ( name = 'IP_AVAIL_PROFILE_NAME' value = ref #( lv_avail_profile ) kind = cl_abap_objectdescr=>exporting )
-             ( name = 'IP_MPT_PERC' value = ref #( is_problem_new_state-mpt_perc ) kind = cl_abap_objectdescr=>exporting )
+             ( name = 'IP_CREATED_AT' value = ref #( is_problem_new_state-created_at ) kind = cl_abap_objectdescr=>exporting )
            ).
 
         insert lines of lt_specific_params into table lt_method_params.
@@ -999,6 +1082,13 @@ class zcl_slpm_data_manager_proxy implementation.
 
     endloop.
 
+    if  is_problem_old_state-status ne is_problem_new_state-status.
+
+      me->adjust_scapptseg_irt( is_problem_new_state-guid ).
+      me->adjust_scapptseg_mpt( is_problem_new_state-guid ).
+
+    endif.
+
   endmethod.
 
 
@@ -1035,7 +1125,28 @@ class zcl_slpm_data_manager_proxy implementation.
          lv_time                       type sy-uzeit,
          lv_date                       type sy-datum,
          lv_system_timezone            type timezone,
-         ls_zslpm_irt_hist             type zslpm_irt_hist.
+         ls_zslpm_irt_hist             type zslpm_irt_hist,
+         lv_created_at_user_tzone      type comt_created_at_usr,
+         lv_seconds_total_in_proc      type integer,
+         lv_seconds_for_irt            type integer,
+         lv_new_irt_perc               type int4,
+         lv_current_timestamp          type timestamp.
+
+
+    " Funny thing!!!
+    " In our code we have to update scapptseg table to write shifted SLAs,
+    " because we cannot set appointments through CRM order API (it just doesn't save it :-( )
+    " However later somehow after each switch from 'In process' to 'Customer Action' OR from
+    " 'On approval' to 'Information requested' all changed records in scapptseg table
+    " ARE REVERTED BACK again to initial state!!! Don't know how and why it happens somewhere
+    " deep in CRM ITSM...
+    "
+    " Finally after each save we have to compare recent scapptseg table SLA value and
+    " those, which we stored in our custom tables. If scapptseg records were reverted,
+    " then we have to re-write it once again....
+
+    me->adjust_scapptseg_irt( ip_guid ).
+    me->adjust_scapptseg_mpt( ip_guid ).
 
     " Taking a timestamp when we switched back from 'Information Requested
 
@@ -1092,6 +1203,27 @@ class zcl_slpm_data_manager_proxy implementation.
       where
           appt_guid = lv_appt_guid.
 
+
+      " Preparing new SLA IRT percentage calculation for history
+
+      convert date sy-datum time sy-uzeit into time stamp lv_current_timestamp time zone 'UTC'.
+
+      lv_created_at_user_tzone = zcl_assistant_utilities=>convert_timestamp_to_timezone(
+        ip_timestamp = ip_created_at
+        ip_timezone = sy-zonlo ).
+
+      lv_seconds_total_in_proc = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+        exporting
+            ip_timestamp_1 = lv_created_at_user_tzone
+            ip_timestamp_2 = lv_current_timestamp ).
+
+      lv_seconds_for_irt = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+      exporting
+          ip_timestamp_1 = ip_created_at
+          ip_timestamp_2 = lv_new_irt_timestamp ).
+
+      lv_new_irt_perc = ( lv_seconds_total_in_proc * 100 ) div lv_seconds_for_irt.
+
       " Storing for further internal usage
 
       ls_zslpm_irt_hist-irttimestamp = lv_new_irt_timestamp.
@@ -1100,7 +1232,7 @@ class zcl_slpm_data_manager_proxy implementation.
       ls_zslpm_irt_hist-apptguid = lv_appt_guid.
       ls_zslpm_irt_hist-problemguid = ip_guid.
       get time stamp field ls_zslpm_irt_hist-update_timestamp.
-      ls_zslpm_irt_hist-irtperc = ip_irt_perc.
+      ls_zslpm_irt_hist-irtperc = lv_new_irt_perc.
       ls_zslpm_irt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
       ls_zslpm_irt_hist-statusin = ip_statusin.
       ls_zslpm_irt_hist-statusout = ip_statusout.
@@ -1131,7 +1263,29 @@ class zcl_slpm_data_manager_proxy implementation.
          lv_time                       type sy-uzeit,
          lv_date                       type sy-datum,
          lv_system_timezone            type timezone,
-         ls_zslpm_mpt_hist             type zslpm_mpt_hist.
+         ls_zslpm_mpt_hist             type zslpm_mpt_hist,
+         lv_created_at_user_tzone      type comt_created_at_usr,
+         lv_seconds_total_in_proc      type integer,
+         lv_seconds_for_mpt            type integer,
+         lv_new_mpt_perc               type int4,
+         lv_current_timestamp          type timestamp.
+
+
+    " Funny thing!!!
+    " In our code we have to update scapptseg table to write shifted SLAs,
+    " because we cannot set appointments through CRM order API (it just doesn't save it :-( )
+    " However later somehow after each switch from 'In process' to 'Customer Action' OR from
+    " 'On approval' to 'Information requested' all changed records in scapptseg table
+    " ARE REVERTED BACK again to initial state!!! Don't know how and why it happens somewhere
+    " deep in CRM ITSM...
+    "
+    " Finally after each save we have to compare recent scapptseg table SLA value and
+    " those, which we stored in our custom tables. If scapptseg records were reverted,
+    " then we have to re-write it once again....
+
+    me->adjust_scapptseg_irt( ip_guid ).
+    me->adjust_scapptseg_mpt( ip_guid ).
+
 
     " Taking a timestamp when we switched back from 'Information Requested
 
@@ -1188,6 +1342,26 @@ class zcl_slpm_data_manager_proxy implementation.
       where
           appt_guid = lv_appt_guid.
 
+      " Preparing new SLA MPT percentage calculation for history
+
+      convert date sy-datum time sy-uzeit into time stamp lv_current_timestamp time zone 'UTC'.
+
+      lv_created_at_user_tzone = zcl_assistant_utilities=>convert_timestamp_to_timezone(
+        ip_timestamp = ip_created_at
+        ip_timezone = sy-zonlo ).
+
+      lv_seconds_total_in_proc = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+        exporting
+            ip_timestamp_1 = lv_created_at_user_tzone
+            ip_timestamp_2 = lv_current_timestamp ).
+
+      lv_seconds_for_mpt = zcl_assistant_utilities=>calc_duration_btw_timestamps(
+      exporting
+          ip_timestamp_1 = ip_created_at
+          ip_timestamp_2 = lv_new_mpt_timestamp ).
+
+      lv_new_mpt_perc = ( lv_seconds_total_in_proc * 100 ) div lv_seconds_for_mpt.
+
       " Storing for further internal usage
 
       ls_zslpm_mpt_hist-mpttimestamp = lv_new_mpt_timestamp.
@@ -1196,7 +1370,7 @@ class zcl_slpm_data_manager_proxy implementation.
       ls_zslpm_mpt_hist-apptguid = lv_appt_guid.
       ls_zslpm_mpt_hist-problemguid = ip_guid.
       get time stamp field ls_zslpm_mpt_hist-update_timestamp.
-      ls_zslpm_mpt_hist-mptperc = ip_mpt_perc.
+      ls_zslpm_mpt_hist-mptperc = lv_new_mpt_perc.
       ls_zslpm_mpt_hist-update_timezone = zcl_assistant_utilities=>get_system_timezone( ).
       ls_zslpm_mpt_hist-statusin = ip_statusin.
       ls_zslpm_mpt_hist-statusout = ip_statusout.
@@ -1237,26 +1411,75 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method set_slpm_sla_irt_hist.
+
+    mo_slpm_sla_irt_hist = new zcl_slpm_sla_irt_hist( ip_guid ).
+
+  endmethod.
+
+
+  method set_slpm_sla_mpt_hist.
+
+    mo_slpm_sla_mpt_hist = new zcl_slpm_sla_mpt_hist( ip_guid ).
+
+  endmethod.
+
+
   method set_statuses_for_irt_recalc.
 
-    mt_statuses_for_irt_recalc = value #(
+*    mt_statuses_for_irt_recalc = value #(
+*
+*    ( statusin = 'E0017' statusout = 'E0016' )
+*
+*    ).
 
-    ( statusin = 'E0017' statusout = 'E0016' )
+    mt_statuses_for_irt_recalc = new zcl_slpm_irt_recalc_statuses( )->zif_slpm_status_pairs~get_all_status_pairs( ).
 
-    ).
+  endmethod.
+
+
+  method set_statuses_for_irt_store.
+
+*    mt_statuses_for_irt_store = value #(
+*
+*    ( statusin = 'E0016' statusout = 'E0017' )
+*
+*    ).
+
+
+    mt_statuses_for_irt_store = new zcl_slpm_irt_store_statuses( )->zif_slpm_status_pairs~get_all_status_pairs( ).
 
   endmethod.
 
 
   method set_statuses_for_mpt_recalc.
 
-    mt_statuses_for_mpt_recalc = value #(
+*    mt_statuses_for_mpt_recalc = value #(
+*
+*    ( statusin = 'E0017' statusout = 'E0016' )
+*    ( statusin = 'E0003' statusout = 'E0002' )
+*    ( statusin = 'E0005' statusout = 'E0002' )
+*
+*    ).
 
-    ( statusin = 'E0017' statusout = 'E0016' )
-    ( statusin = 'E0003' statusout = 'E0002' )
-    ( statusin = 'E0005' statusout = 'E0002' )
+    mt_statuses_for_mpt_recalc = new zcl_slpm_mpt_recalc_statuses( )->zif_slpm_status_pairs~get_all_status_pairs( ).
 
-    ).
+
+  endmethod.
+
+
+  method set_statuses_for_mpt_store.
+
+*    mt_statuses_for_mpt_store = value #(
+*
+*    ( statusin = 'E0016' statusout = 'E0017' )
+*    ( statusin = 'E0002' statusout = 'E0003' )
+*    ( statusin = 'E0002' statusout = 'E0005' )
+*
+*    ).
+
+    mt_statuses_for_mpt_store = new zcl_slpm_mpt_store_statuses( )->zif_slpm_status_pairs~get_all_status_pairs( ).
+
 
   endmethod.
 
@@ -1267,6 +1490,22 @@ class zcl_slpm_data_manager_proxy implementation.
     data:
       lv_appt_guid      type sc_aptguid,
       ls_zslpm_irt_hist type zslpm_irt_hist.
+
+    " Funny thing!!!
+    " In our code we have to update scapptseg table to write shifted SLAs,
+    " because we cannot set appointments through CRM order API (it just doesn't save it :-( )
+    " However later somehow after each switch from 'In process' to 'Customer Action' OR from
+    " 'On approval' to 'Information requested' all changed records in scapptseg table
+    " ARE REVERTED BACK again to initial state!!! Don't know how and why it happens somewhere
+    " deep in CRM ITSM...
+    "
+    " Finally after each save we have to compare recent scapptseg table SLA value and
+    " those, which we stored in our custom tables. If scapptseg records were reverted,
+    " then we have to re-write it once again....
+
+    me->adjust_scapptseg_irt( ip_guid ).
+    me->adjust_scapptseg_mpt( ip_guid ).
+
 
     lv_appt_guid = me->get_srv_rfirst_appt_guid( ip_guid ).
 
@@ -1307,6 +1546,21 @@ class zcl_slpm_data_manager_proxy implementation.
       lt_appointments           type crmt_appointment_wrkt,
       ls_srv_rready_appointment type crmt_appointment_wrk,
       ls_zslpm_mpt_hist         type zslpm_mpt_hist.
+
+    " Funny thing!!!
+    " In our code we have to update scapptseg table to write shifted SLAs,
+    " because we cannot set appointments through CRM order API (it just doesn't save it :-( )
+    " However later somehow after each switch from 'In process' to 'Customer Action' OR from
+    " 'On approval' to 'Information requested' all changed records in scapptseg table
+    " ARE REVERTED BACK again to initial state!!! Don't know how and why it happens somewhere
+    " deep in CRM ITSM...
+    "
+    " Finally after each save we have to compare recent scapptseg table SLA value and
+    " those, which we stored in our custom tables. If scapptseg records were reverted,
+    " then we have to re-write it once again....
+
+    me->adjust_scapptseg_irt( ip_guid ).
+    me->adjust_scapptseg_mpt( ip_guid ).
 
     lo_slmp_problem_api       = new zcl_slpm_problem_api( mo_active_configuration ).
 
@@ -1623,6 +1877,18 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method zif_slpm_data_manager~get_active_configuration.
+
+    if mo_slpm_data_provider is bound.
+
+      ro_active_configuration = mo_slpm_data_provider->get_active_configuration( ).
+
+    endif.
+
+
+  endmethod.
+
+
   method zif_slpm_data_manager~get_all_priorities.
 
     if mo_slpm_data_provider is bound.
@@ -1681,6 +1947,18 @@ class zcl_slpm_data_manager_proxy implementation.
          importing
          er_attachment = er_attachment
          er_stream = er_stream ).
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_final_status_codes.
+
+
+    if mo_slpm_data_provider is bound.
+
+      rt_final_status_codes = mo_slpm_data_provider->get_final_status_codes( ).
 
     endif.
 
@@ -1799,7 +2077,8 @@ class zcl_slpm_data_manager_proxy implementation.
       et_result = mo_slpm_data_provider->get_problems_list(
       exporting
         it_filters = it_filters
-        it_order = it_order ).
+        it_order = it_order
+        ip_exclude_exp_fields = ip_exclude_exp_fields ).
 
     endif.
 
@@ -1844,6 +2123,18 @@ class zcl_slpm_data_manager_proxy implementation.
       rp_customer_action = mo_slpm_data_provider->is_status_a_customer_action( ip_status ).
 
     endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~is_status_a_final_status.
+
+    if mo_slpm_data_provider is bound.
+
+      rp_final_status = mo_slpm_data_provider->is_status_a_final_status( ip_status ).
+
+    endif.
+
 
   endmethod.
 
@@ -1916,7 +2207,6 @@ class zcl_slpm_data_manager_proxy implementation.
 
           me->fill_extra_fields_for_update( changing cs_problem = ls_problem ).
 
-
           rs_result = mo_slpm_data_provider->update_problem(
             exporting
                 ip_guid = ip_guid
@@ -1927,6 +2217,7 @@ class zcl_slpm_data_manager_proxy implementation.
                is_problem_new_state = rs_result
                is_problem_old_state = ls_problem_old_state
                is_payload = ls_problem ).
+
 
           " Adding a change notifier observer for updated problem
 
@@ -1963,58 +2254,42 @@ class zcl_slpm_data_manager_proxy implementation.
 
   endmethod.
 
-  method set_statuses_for_mpt_store.
+  method is_mpt_overdue_before_store.
 
-    mt_statuses_for_mpt_store = value #(
+    data:
+      lv_timestamp_mpt type sc_tstfro,
+      lv_timestamp_now type sc_tstfro,
+      lv_timezone_mpt  type sc_zonefro,
+      lv_timezone_now  type sc_zonefro.
 
-    ( statusin = 'E0016' statusout = 'E0017' )
-    ( statusin = 'E0002' statusout = 'E0003' )
-    ( statusin = 'E0002' statusout = 'E0005' )
-
-    ).
-
-
-  endmethod.
-
-  method set_statuses_for_irt_store.
-
-    mt_statuses_for_irt_store = value #(
-
-    ( statusin = 'E0016' statusout = 'E0017' )
-
-    ).
-
-  endmethod.
-
-  method zif_slpm_data_manager~is_status_a_final_status.
-
-    if mo_slpm_data_provider is bound.
-
-      rp_final_status = mo_slpm_data_provider->is_status_a_final_status( ip_status ).
-
-    endif.
+    " We must consent, that this method can only be called, if we are in a status, which requires MPT SLA store!
+    " Basically the check for the proper status must happen in POST_UPDATE_EXTERNAL_ACTIONS before calling of this method
+    " In addition this method must only be called when MPT SLA is paused
 
 
-  endmethod.
+    " Getting current time stamp (now)
 
-  method zif_slpm_data_manager~get_final_status_codes.
+    get time stamp field lv_timestamp_now.
+    lv_timezone_now = zcl_assistant_utilities=>get_system_timezone(  ).
 
+    " Getting data from SLA history: if there were any recalculations, then
+    " we should have a not empty history, and finally SLA timestamp from history should
+    " be equal to the one in standard implementation
 
-    if mo_slpm_data_provider is bound.
+    mo_slpm_sla_mpt_hist->get_last_sla_timestamp(
+        importing
+            ep_timestamp = lv_timestamp_mpt
+            ep_timezone = lv_timezone_mpt ).
 
-      rt_final_status_codes = mo_slpm_data_provider->get_final_status_codes( ).
+    if ( lv_timestamp_mpt is initial ) and ( lv_timezone_mpt is initial ).
+
+      lv_timestamp_mpt = is_problem_new_state-mpt_timestamp_utc.
 
     endif.
 
-  endmethod.
+    if lv_timestamp_now ge lv_timestamp_mpt.
 
-
-
-  method zif_slpm_data_manager~get_active_configuration.
-
-    if mo_slpm_data_provider is bound.
-
-      ro_active_configuration = mo_slpm_data_provider->get_active_configuration( ).
+      rp_sla_mpt_overdue = abap_true.
 
     endif.
 
