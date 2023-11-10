@@ -789,7 +789,8 @@ class zcl_slpm_problem_history_store implementation.
       lt_final_statuses        type range of j_estat,
       wa_final_status_code     like line of lt_final_statuses,
       lv_total_on_customer     type integer,
-      lv_total_not_on_customer type integer.
+      lv_total_not_on_customer type integer,
+      lv_record_number         type integer value 1.
 
     lv_system_timezone = zcl_assistant_utilities=>get_system_timezone( ).
 
@@ -861,6 +862,9 @@ class zcl_slpm_problem_history_store implementation.
 
       endloop.
 
+      wa_problem_statistic-recordnumber = lv_record_number.
+      lv_record_number = lv_record_number + 1.
+
       append wa_problem_statistic to lt_problem_flow_stat.
 
     endloop.
@@ -915,12 +919,14 @@ class zcl_slpm_problem_history_store implementation.
     " This is valid only for non final statuses
     " For final statuses duration, out date and time are always initial
 
-    if lt_problem_flow_stat[ lines( lt_problem_flow_stat ) ]-status
-        not in lt_final_statuses.
 
-      clear wa_problem_statistic.
+    try.
 
-      try.
+        if lt_problem_flow_stat[ lines( lt_problem_flow_stat ) ]-status
+            not in lt_final_statuses.
+
+          clear wa_problem_statistic.
+
 
           wa_problem_statistic = lt_problem_flow_stat[ lines( lt_problem_flow_stat ) ].
 
@@ -956,13 +962,11 @@ class zcl_slpm_problem_history_store implementation.
 
           endif.
 
+        endif.
 
+      catch cx_sy_itab_line_not_found.
 
-        catch cx_sy_itab_line_not_found.
-
-      endtry.
-
-    endif.
+    endtry.
 
     " Preparing totals
 
@@ -971,10 +975,16 @@ class zcl_slpm_problem_history_store implementation.
     wa_problem_statistic-status = 'TOTC'.
     wa_problem_statistic-duration_in_seconds = lv_total_on_customer.
 
+    wa_problem_statistic-recordnumber = lv_record_number.
+    lv_record_number = lv_record_number + 1.
+
     append wa_problem_statistic to lt_problem_flow_stat.
 
     wa_problem_statistic-status = 'TOTN'.
     wa_problem_statistic-duration_in_seconds = lv_total_not_on_customer.
+
+    wa_problem_statistic-recordnumber = lv_record_number.
+    lv_record_number = lv_record_number + 1.
 
     append wa_problem_statistic to lt_problem_flow_stat.
 
@@ -1004,6 +1014,9 @@ class zcl_slpm_problem_history_store implementation.
       wa_problem_statistic-processorname = <fs_group_record_pc>-processorname.
       wa_problem_statistic-iscustomeractionstatus = <fs_group_record_pc>-iscustomeractionstatus.
 
+      wa_problem_statistic-recordnumber = lv_record_number.
+      lv_record_number = lv_record_number + 1.
+
       append wa_problem_statistic to lt_problem_proc_stat.
 
     endloop.
@@ -1029,6 +1042,9 @@ class zcl_slpm_problem_history_store implementation.
       wa_problem_statistic-processorbusinesspartner = <fs_group_record_pn>-processorbusinesspartner.
       wa_problem_statistic-processorname = <fs_group_record_pn>-processorname.
       wa_problem_statistic-iscustomeractionstatus = <fs_group_record_pn>-iscustomeractionstatus.
+
+      wa_problem_statistic-recordnumber = lv_record_number.
+      lv_record_number = lv_record_number + 1.
 
       append wa_problem_statistic to lt_problem_proc_stat.
 

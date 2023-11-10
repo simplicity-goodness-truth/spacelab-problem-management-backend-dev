@@ -200,7 +200,13 @@ class zcl_slpm_data_manager definition
         importing
           ip_guid                 type crmt_object_guid
         returning
-          value(rs_slpm_mpt_hist) type zslpm_mpt_hist.
+          value(rs_slpm_mpt_hist) type zslpm_mpt_hist,
+
+      get_all_stco_from_storage
+        importing
+          ip_status_codes_record_id type char64
+        returning
+          value(rt_status_codes)    type zcrm_order_tt_status_codes.
 
 
 endclass.
@@ -784,46 +790,54 @@ class zcl_slpm_data_manager implementation.
 
   method set_cust_action_status_codes.
 
-    mt_cust_action_status_codes = value #(
-        ( 'E0017' )
-        ( 'E0003' )
-        ( 'E0005' )
-    ).
+    mt_cust_action_status_codes = me->get_all_stco_from_storage( 'CUSTOMER_ACTION' ).
+
+*    mt_cust_action_status_codes = value #(
+*        ( 'E0017' )
+*        ( 'E0003' )
+*        ( 'E0005' )
+*    ).
 
   endmethod.
 
 
   method set_final_status_codes.
 
-    mt_final_status_codes = value #(
+    mt_final_status_codes = me->get_all_stco_from_storage( 'FINAL' ).
 
-      ( 'E0010' )
-      ( 'E0008' )
-  ).
+*    mt_final_status_codes = value #(
+*
+*      ( 'E0010' )
+*      ( 'E0008' )
+*  ).
 
   endmethod.
 
 
   method set_hold_irt_sla_status_codes.
 
-    mt_hold_irt_sla_status_codes = value #(
+    mt_hold_irt_sla_status_codes = me->get_all_stco_from_storage( 'HOLD_IRT_SLA' ).
 
-      ( 'E0017' )
-
-    ).
+*    mt_hold_irt_sla_status_codes = value #(
+*
+*      ( 'E0017' )
+*
+*    ).
 
   endmethod.
 
 
   method set_hold_mpt_sla_status_codes.
 
-    mt_hold_mpt_sla_status_codes = value #(
+    mt_hold_mpt_sla_status_codes = me->get_all_stco_from_storage( 'HOLD_MPT_SLA' ).
 
-      ( 'E0017' )
-      ( 'E0003' )
-      ( 'E0005' )
-
-    ).
+*    mt_hold_mpt_sla_status_codes = value #(
+*
+*      ( 'E0017' )
+*      ( 'E0003' )
+*      ( 'E0005' )
+*
+*    ).
 
   endmethod.
 
@@ -1822,7 +1836,9 @@ class zcl_slpm_data_manager implementation.
     mo_slpm_problem_api->zif_custom_crm_order_update~update_order(
          exporting
          ir_entity = lr_problem
-         ip_guid = ip_guid ).
+         ip_guid = ip_guid
+         ip_tdid = ip_tdid
+         ip_text = ip_text ).
 
     rs_result = me->zif_slpm_data_manager~get_problem( ip_guid ).
 
@@ -1830,82 +1846,97 @@ class zcl_slpm_data_manager implementation.
 
   method set_reqconfenab_status_code.
 
-    mt_reqconfenab_status_codes = value #(
+    mt_reqconfenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_CONFIRM_ENABLED' ).
 
-    ( 'E0005' )
-
-    ).
+*    mt_reqconfenab_status_codes = value #(
+*
+*    ( 'E0005' )
+*
+*    ).
 
   endmethod.
 
   method set_reqrepenab_status_codes.
 
-    mt_reqrepenab_status_codes = value #(
+    mt_reqrepenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_REPLY_ENABLED' ).
 
-     ( 'E0003' )
-     ( 'E0005' )
-     ( 'E0017' )
-
-    ).
+*    mt_reqrepenab_status_codes = value #(
+*
+*     ( 'E0003' )
+*     ( 'E0005' )
+*     ( 'E0017' )
+*
+*    ).
 
   endmethod.
 
   method set_requpdenab_status_codes.
 
-    mt_requpdenab_status_codes = value #(
+    mt_requpdenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_UPDATE_ENABLED' ).
 
-        ( 'E0001' )
-        ( 'E0002' )
-        ( 'E0016' )
-
-    ).
+*    mt_requpdenab_status_codes = value #(
+*
+*        ( 'E0001' )
+*        ( 'E0002' )
+*        ( 'E0016' )
+*
+*    ).
 
   endmethod.
 
   method set_reqwitenab_status_codes.
 
-    mt_reqwitenab_status_codes = value #(
+    mt_reqwitenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_WITHDRAW_ENABLED' ).
 
-        ( 'E0001' )
-        ( 'E0002' )
-
-    ).
+*    mt_reqwitenab_status_codes = value #(
+*
+*        ( 'E0001' )
+*        ( 'E0002' )
+*
+*    ).
 
   endmethod.
 
   method set_procedmodeena_status_codes.
 
-    mt_procedmodeenab_status_codes = value #(
+    mt_procedmodeenab_status_codes = me->get_all_stco_from_storage( 'PROCESSOR_EDIT_MODE_ENABLED' ).
 
-        ( 'E0001' )
-        ( 'E0002' )
-        ( 'E0003' )
-        ( 'E0015' )
-        ( 'E0016' )
-        ( 'E0005' )
-
-    ).
+*    mt_procedmodeenab_status_codes = value #(
+*
+*        ( 'E0001' )
+*        ( 'E0002' )
+*        ( 'E0003' )
+*        ( 'E0015' )
+*        ( 'E0016' )
+*        ( 'E0005' )
+*
+*    ).
 
   endmethod.
 
   method set_procprichgena_status_codes.
 
-    mt_procprichgenab_status_codes = value #(
+    mt_procprichgenab_status_codes = me->get_all_stco_from_storage( 'PROCESSOR_PRIORITY_CHANGE_ENABLED' ).
 
-        ( 'E0001' )
-        ( 'E0016' )
 
-     ).
+*    mt_procprichgenab_status_codes = value #(
+*
+*        ( 'E0001' )
+*        ( 'E0016' )
+*
+*     ).
 
   endmethod.
 
   method set_procretwitena_status_codes.
 
-    mt_procretwitenab_status_codes = value #(
+    mt_procretwitenab_status_codes = me->get_all_stco_from_storage( 'PROCESSOR_RETURN_FROM_WITHDRAWAL_ENABLED' ).
 
-        ( 'E0010' )
-
-    ).
+*    mt_procretwitenab_status_codes = value #(
+*
+*        ( 'E0010' )
+*
+*    ).
 
   endmethod.
 
@@ -1931,6 +1962,12 @@ class zcl_slpm_data_manager implementation.
   method get_stored_mpt_perc.
 
     rp_stored_mpt_perc = me->get_last_slpm_mpt_hist( ip_guid )-mptperc.
+
+  endmethod.
+
+  method get_all_stco_from_storage.
+
+    rt_status_codes = new zcl_slpm_status_codes_storage( )->zif_slpm_status_codes_storage~get_status_codes_record( ip_status_codes_record_id )->get_all_status_codes( ).
 
   endmethod.
 
