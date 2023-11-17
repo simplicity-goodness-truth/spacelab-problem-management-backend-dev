@@ -1068,4 +1068,21 @@ class zcl_slpm_problem_history_store implementation.
 
   endmethod.
 
+  method zif_slpm_problem_history_store~get_dist_stco_count_by_stco.
+
+    data:
+      lt_history_headers type zslpm_tt_pr_his_hdr,
+      lt_history_records type zslpm_tt_pr_his_rec.
+
+    lt_history_records = me->zif_slpm_problem_history_store~get_problem_history_records( ).
+
+    loop at lt_history_records transporting no fields
+        where field eq 'STATUS' and value eq ip_status_code.
+
+        rp_count = rp_count + 1.
+
+    endloop.
+
+  endmethod.
+
 endclass.

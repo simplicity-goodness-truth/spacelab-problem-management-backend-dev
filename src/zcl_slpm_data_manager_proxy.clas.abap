@@ -763,6 +763,49 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method is_mpt_overdue_before_store.
+
+    data:
+      lv_timestamp_mpt type sc_tstfro,
+      lv_timestamp_now type sc_tstfro,
+      lv_timezone_mpt  type sc_zonefro,
+      lv_timezone_now  type sc_zonefro.
+
+    " We must consent, that this method can only be called, if we are in a status, which requires MPT SLA store!
+    " Basically the check for the proper status must happen in POST_UPDATE_EXTERNAL_ACTIONS before calling of this method
+    " In addition this method must only be called when MPT SLA is paused
+
+
+    " Getting current time stamp (now)
+
+    get time stamp field lv_timestamp_now.
+    lv_timezone_now = zcl_assistant_utilities=>get_system_timezone(  ).
+
+    " Getting data from SLA history: if there were any recalculations, then
+    " we should have a not empty history, and finally SLA timestamp from history should
+    " be equal to the one in standard implementation
+
+    mo_slpm_sla_mpt_hist->get_last_sla_timestamp(
+        importing
+            ep_timestamp = lv_timestamp_mpt
+            ep_timezone = lv_timezone_mpt ).
+
+    if ( lv_timestamp_mpt is initial ) and ( lv_timezone_mpt is initial ).
+
+      lv_timestamp_mpt = is_problem_new_state-mpt_timestamp_utc.
+
+    endif.
+
+    if lv_timestamp_now ge lv_timestamp_mpt.
+
+      rp_sla_mpt_overdue = abap_true.
+
+    endif.
+
+
+  endmethod.
+
+
   method notify_observers_on_att_remove.
 
     loop at mt_problem_observers assigning field-symbol(<ms_observer>).
@@ -2116,6 +2159,18 @@ class zcl_slpm_data_manager_proxy implementation.
   endmethod.
 
 
+  method zif_slpm_data_manager~is_problem_dispute_open.
+
+    if mo_slpm_data_provider is bound.
+
+      rp_dispute_active = mo_slpm_data_provider->is_problem_dispute_open( ip_guid ).
+
+    endif.
+
+
+  endmethod.
+
+
   method zif_slpm_data_manager~is_status_a_customer_action.
 
     if mo_slpm_data_provider is bound.
@@ -2135,6 +2190,17 @@ class zcl_slpm_data_manager_proxy implementation.
 
     endif.
 
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~open_problem_dispute.
+
+    if mo_slpm_data_provider is bound.
+
+      mo_slpm_data_provider->open_problem_dispute( ip_guid ).
+
+    endif.
 
   endmethod.
 
@@ -2256,45 +2322,23 @@ class zcl_slpm_data_manager_proxy implementation.
 
   endmethod.
 
-  method is_mpt_overdue_before_store.
+  method zif_slpm_data_manager~close_problem_dispute.
 
-    data:
-      lv_timestamp_mpt type sc_tstfro,
-      lv_timestamp_now type sc_tstfro,
-      lv_timezone_mpt  type sc_zonefro,
-      lv_timezone_now  type sc_zonefro.
+    if mo_slpm_data_provider is bound.
 
-    " We must consent, that this method can only be called, if we are in a status, which requires MPT SLA store!
-    " Basically the check for the proper status must happen in POST_UPDATE_EXTERNAL_ACTIONS before calling of this method
-    " In addition this method must only be called when MPT SLA is paused
-
-
-    " Getting current time stamp (now)
-
-    get time stamp field lv_timestamp_now.
-    lv_timezone_now = zcl_assistant_utilities=>get_system_timezone(  ).
-
-    " Getting data from SLA history: if there were any recalculations, then
-    " we should have a not empty history, and finally SLA timestamp from history should
-    " be equal to the one in standard implementation
-
-    mo_slpm_sla_mpt_hist->get_last_sla_timestamp(
-        importing
-            ep_timestamp = lv_timestamp_mpt
-            ep_timezone = lv_timezone_mpt ).
-
-    if ( lv_timestamp_mpt is initial ) and ( lv_timezone_mpt is initial ).
-
-      lv_timestamp_mpt = is_problem_new_state-mpt_timestamp_utc.
+      mo_slpm_data_provider->close_problem_dispute( ip_guid ).
 
     endif.
 
-    if lv_timestamp_now ge lv_timestamp_mpt.
+  endmethod.
 
-      rp_sla_mpt_overdue = abap_true.
+  method zif_slpm_data_manager~get_problem_dispute_history.
+
+    if mo_slpm_data_provider is bound.
+
+      rt_dispute_history = mo_slpm_data_provider->get_problem_dispute_history( ip_guid ).
 
     endif.
-
 
   endmethod.
 

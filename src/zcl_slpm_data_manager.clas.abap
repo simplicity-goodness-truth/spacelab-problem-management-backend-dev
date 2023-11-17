@@ -36,7 +36,11 @@ class zcl_slpm_data_manager definition
       mt_reqwitenab_status_codes     type table of j_estat,
       mt_procedmodeenab_status_codes type table of j_estat,
       mt_procprichgenab_status_codes type table of j_estat,
-      mt_procretwitenab_status_codes type table of j_estat.
+      mt_procretwitenab_status_codes type table of j_estat,
+      mt_procopdisenab_status_codes  type table of j_estat,
+      mt_reqopdisenab_status_codes   type table of j_estat,
+      mo_slpm_problem_disputes_store type ref to zif_slpm_problem_dispute_store,
+      mo_slpm_user                   type ref to zif_slpm_user.
 
     methods:
 
@@ -46,7 +50,11 @@ class zcl_slpm_data_manager definition
         changing
           cs_problem            type zcrm_order_ts_sl_problem
         raising
-          zcx_slpm_configuration_exc,
+          zcx_slpm_configuration_exc
+          zcx_crm_order_api_exc
+          zcx_assistant_utilities_exc
+          zcx_system_user_exc
+          zcx_slpm_data_manager_exc,
 
       fill_possible_problem_actions
         changing
@@ -206,7 +214,43 @@ class zcl_slpm_data_manager definition
         importing
           ip_status_codes_record_id type char64
         returning
-          value(rt_status_codes)    type zcrm_order_tt_status_codes.
+          value(rt_status_codes)    type zcrm_order_tt_status_codes,
+
+      set_slpm_problem_disputes
+        importing
+          ip_guid type crmt_object_guid,
+
+      set_procopdisena_status_codes,
+
+      set_reqopdisena_status_codes,
+
+      is_stco_cnt_permit_dis_ope_pro
+        importing
+          ip_guid             type crmt_object_guid
+          ip_status_code      type j_estat
+        returning
+          value(rp_permitted) type abap_bool
+        raising
+          zcx_crm_order_api_exc
+          zcx_assistant_utilities_exc
+          zcx_slpm_configuration_exc
+          zcx_system_user_exc
+          zcx_slpm_data_manager_exc,
+
+      is_stco_cnt_permit_dis_ope_req
+        importing
+          ip_guid             type crmt_object_guid
+          ip_status_code      type j_estat
+        returning
+          value(rp_permitted) type abap_bool
+        raising
+          zcx_crm_order_api_exc
+          zcx_assistant_utilities_exc
+          zcx_slpm_configuration_exc
+          zcx_system_user_exc
+          zcx_slpm_data_manager_exc,
+
+      set_slpm_user.
 
 
 endclass.
@@ -441,9 +485,60 @@ class zcl_slpm_data_manager implementation.
 
     endif.
 
+    " Dispute related fields
+
+
+*    data:
+*       lo_slpm_user type ref to zif_slpm_user.
+
+   " lo_slpm_user = new zcl_slpm_user( sy-uname ).
+
+    if ( mo_active_configuration->get_parameter_value( 'USE_DISPUTES' ) eq 'X').
+
+      if me->zif_slpm_data_manager~is_problem_dispute_open( cs_problem-guid ) eq abap_false.
+
+        cs_problem-isdisputeopen = abap_false.
+
+        cs_problem-requesteropendisputeenabled =  cond abap_bool(
+                when mo_slpm_user->is_auth_to_open_dispute_as_req( ) then
+                    cond abap_bool(
+                        when line_exists( mt_reqopdisenab_status_codes[ table_line = cs_problem-status ] ) then
+                            cond abap_bool(
+                                when me->is_stco_cnt_permit_dis_ope_req( ip_guid = cs_problem-guid ip_status_code = cs_problem-status ) then
+                                    abap_true
+                                else
+                                    abap_false )
+
+                            else abap_false )
+                else abap_false ) .
+
+        cs_problem-processoropendisputeenabled =  cond abap_bool(
+                when mo_slpm_user->is_auth_to_open_dispute_as_pro( ) then
+                    cond abap_bool(
+                        when line_exists( mt_procopdisenab_status_codes[ table_line = cs_problem-status ] ) then
+                            cond abap_bool(
+                                when me->is_stco_cnt_permit_dis_ope_pro( ip_guid = cs_problem-guid ip_status_code = cs_problem-status ) then
+                                    abap_true
+                                else
+                                    abap_false )
+                            else abap_false )
+                    else abap_false ) .
+
+      endif.
+
+      if me->zif_slpm_data_manager~is_problem_dispute_open( cs_problem-guid ) eq abap_true.
+
+        cs_problem-isdisputeopen = abap_true.
+
+        cs_problem-processorclosedisputeenabled =  cond abap_bool(
+                when mo_slpm_user->is_auth_to_clos_dispute_as_pro( ) then abap_true
+                else abap_false ) .
+
+      endif.
+
+    endif.
 
   endmethod.
-
 
   method add_problem_to_cache.
 
@@ -471,6 +566,9 @@ class zcl_slpm_data_manager implementation.
     me->set_procedmodeena_status_codes(  ).
     me->set_procprichgena_status_codes(  ).
     me->set_procretwitena_status_codes(  ).
+    me->set_procopdisena_status_codes( ).
+    me->set_reqopdisena_status_codes( ).
+    me->set_slpm_user( ).
 
   endmethod.
 
@@ -565,10 +663,10 @@ class zcl_slpm_data_manager implementation.
   method filter_out_attachments.
 
     data: lv_visibility       type char1,
-          lo_slpm_user        type ref to zif_slpm_user,
+          "lo_slpm_user        type ref to zif_slpm_user,
           wa_attachments_list like line of et_attachments_list.
 
-    lo_slpm_user = new zcl_slpm_user( sy-uname ).
+    "lo_slpm_user = new zcl_slpm_user( sy-uname ).
 
     loop at it_attachments_list assigning field-symbol(<ls_attachment>).
 
@@ -582,7 +680,7 @@ class zcl_slpm_data_manager implementation.
 
       if ( lv_visibility eq 'I' ).
 
-        if ( lo_slpm_user->is_auth_for_internal_att(  ) eq abap_true ).
+        if ( mo_slpm_user->is_auth_for_internal_att(  ) eq abap_true ).
 
           " For internal visibility we will use field EnabledEdit, as we did not use it anyhow so far
 
@@ -599,6 +697,13 @@ class zcl_slpm_data_manager implementation.
       endif.
 
     endloop.
+
+  endmethod.
+
+
+  method get_all_stco_from_storage.
+
+    rt_status_codes = new zcl_slpm_status_codes_storage( )->zif_slpm_status_codes_storage~get_status_codes_record( ip_status_codes_record_id )->get_all_status_codes( ).
 
   endmethod.
 
@@ -630,6 +735,19 @@ class zcl_slpm_data_manager implementation.
     select guid apptguid problemguid irttimestamp irttimezone irtperc update_timestamp update_timezone
       from zslpm_irt_hist
       into corresponding fields of rs_slpm_irt_hist
+     up to 1 rows
+       where problemguid = ip_guid order by update_timestamp descending.
+
+    endselect.
+
+  endmethod.
+
+
+  method get_last_slpm_mpt_hist.
+
+    select guid apptguid problemguid mpttimestamp mpttimezone mptperc update_timestamp update_timezone
+      from zslpm_mpt_hist
+      into corresponding fields of rs_slpm_mpt_hist
      up to 1 rows
        where problemguid = ip_guid order by update_timestamp descending.
 
@@ -702,6 +820,13 @@ class zcl_slpm_data_manager implementation.
   method get_stored_irt_timestamp.
 
     rp_timestamp = me->get_last_slpm_irt_hist( ip_guid )-irttimestamp.
+
+  endmethod.
+
+
+  method get_stored_mpt_perc.
+
+    rp_stored_mpt_perc = me->get_last_slpm_mpt_hist( ip_guid )-mptperc.
 
   endmethod.
 
@@ -842,6 +967,109 @@ class zcl_slpm_data_manager implementation.
   endmethod.
 
 
+  method set_procedmodeena_status_codes.
+
+    mt_procedmodeenab_status_codes = me->get_all_stco_from_storage( 'PROCESSOR_EDIT_MODE_ENABLED' ).
+
+*    mt_procedmodeenab_status_codes = value #(
+*
+*        ( 'E0001' )
+*        ( 'E0002' )
+*        ( 'E0003' )
+*        ( 'E0015' )
+*        ( 'E0016' )
+*        ( 'E0005' )
+*
+*    ).
+
+  endmethod.
+
+
+  method set_procprichgena_status_codes.
+
+    mt_procprichgenab_status_codes = me->get_all_stco_from_storage( 'PROCESSOR_PRIORITY_CHANGE_ENABLED' ).
+
+
+*    mt_procprichgenab_status_codes = value #(
+*
+*        ( 'E0001' )
+*        ( 'E0016' )
+*
+*     ).
+
+  endmethod.
+
+
+  method set_procretwitena_status_codes.
+
+    mt_procretwitenab_status_codes = me->get_all_stco_from_storage( 'PROCESSOR_RETURN_FROM_WITHDRAWAL_ENABLED' ).
+
+*    mt_procretwitenab_status_codes = value #(
+*
+*        ( 'E0010' )
+*
+*    ).
+
+  endmethod.
+
+
+  method set_reqconfenab_status_code.
+
+    mt_reqconfenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_CONFIRM_ENABLED' ).
+
+*    mt_reqconfenab_status_codes = value #(
+*
+*    ( 'E0005' )
+*
+*    ).
+
+  endmethod.
+
+
+  method set_reqrepenab_status_codes.
+
+    mt_reqrepenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_REPLY_ENABLED' ).
+
+*    mt_reqrepenab_status_codes = value #(
+*
+*     ( 'E0003' )
+*     ( 'E0005' )
+*     ( 'E0017' )
+*
+*    ).
+
+  endmethod.
+
+
+  method set_requpdenab_status_codes.
+
+    mt_requpdenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_UPDATE_ENABLED' ).
+
+*    mt_requpdenab_status_codes = value #(
+*
+*        ( 'E0001' )
+*        ( 'E0002' )
+*        ( 'E0016' )
+*
+*    ).
+
+  endmethod.
+
+
+  method set_reqwitenab_status_codes.
+
+    mt_reqwitenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_WITHDRAW_ENABLED' ).
+
+*    mt_reqwitenab_status_codes = value #(
+*
+*        ( 'E0001' )
+*        ( 'E0002' )
+*
+*    ).
+
+  endmethod.
+
+
   method set_slpm_cache_controller.
 
     if  mo_slpm_cache_controller is not bound.
@@ -850,6 +1078,13 @@ class zcl_slpm_data_manager implementation.
 
     endif.
 
+
+  endmethod.
+
+
+  method set_slpm_problem_disputes.
+
+    mo_slpm_problem_disputes_store = new zcl_slpm_problem_dispute_store( ip_guid ).
 
   endmethod.
 
@@ -932,6 +1167,19 @@ class zcl_slpm_data_manager implementation.
         cs_problem-mpt_perc = 999.
 
       endif.
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~close_problem_dispute.
+
+    if ( mo_active_configuration->get_parameter_value( 'USE_DISPUTES' ) eq 'X').
+
+      me->set_slpm_problem_disputes( ip_guid ).
+
+      mo_slpm_problem_disputes_store->close_problem_dispute( ).
 
     endif.
 
@@ -1057,6 +1305,13 @@ class zcl_slpm_data_manager implementation.
       move-corresponding ls_sla_status to cs_problem.
 
     endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~get_active_configuration.
+
+    ro_active_configuration = mo_active_configuration.
 
   endmethod.
 
@@ -1221,7 +1476,7 @@ class zcl_slpm_data_manager implementation.
       lt_companies       type crmt_bu_partner_t,
       ls_company         type zslpm_ts_company,
       lo_company         type ref to zif_company,
-      lo_slpm_user       type ref to zif_slpm_user,
+      "lo_slpm_user       type ref to zif_slpm_user,
       lv_log_record_text type string.
 
     " Get distinct companies from ZSLPM_CUST_PROD
@@ -1230,13 +1485,13 @@ class zcl_slpm_data_manager implementation.
 
     if lt_companies is not initial.
 
-      lo_slpm_user = new zcl_slpm_user( sy-uname ).
+      "lo_slpm_user = new zcl_slpm_user( sy-uname ).
 
       loop at lt_companies assigning field-symbol(<ls_company>).
 
         " User can only see the companies for which he/she is authorized
 
-        if ( lo_slpm_user->is_auth_to_view_company( <ls_company> ) eq abap_false ).
+        if ( mo_slpm_user->is_auth_to_view_company( <ls_company> ) eq abap_false ).
 
           message e003(zslpm_data_manager) with sy-uname <ls_company> into lv_log_record_text.
 
@@ -1580,7 +1835,7 @@ class zcl_slpm_data_manager implementation.
       lv_include_record  type ac_bool,
       lr_entity          type ref to data,
       lo_sorted_table    type ref to data,
-      lo_slpm_user       type ref to zif_slpm_user,
+      "lo_slpm_user       type ref to zif_slpm_user,
       lv_log_record_text type string,
       lv_product_id      type comt_product_id.
 
@@ -1599,7 +1854,7 @@ class zcl_slpm_data_manager implementation.
 
     if lt_crm_guids is not initial.
 
-      lo_slpm_user = new zcl_slpm_user( sy-uname ).
+      "lo_slpm_user = new zcl_slpm_user( sy-uname ).
 
       loop at lt_crm_guids assigning field-symbol(<ls_crm_guid>).
 
@@ -1651,7 +1906,7 @@ class zcl_slpm_data_manager implementation.
 
         " User can only see the companies for which he/she is authorized
 
-        if ( lo_slpm_user->is_auth_to_view_company( ls_result-companybusinesspartner ) eq abap_false ).
+        if ( mo_slpm_user->is_auth_to_view_company( ls_result-companybusinesspartner ) eq abap_false ).
 
           message e003(zslpm_data_manager) with sy-uname ls_result-companybusinesspartner into lv_log_record_text.
 
@@ -1667,7 +1922,7 @@ class zcl_slpm_data_manager implementation.
         lv_product_id = ls_result-productname.
 
 
-        if ( lo_slpm_user->is_auth_to_view_product( lv_product_id ) eq abap_false ).
+        if ( mo_slpm_user->is_auth_to_view_product( lv_product_id ) eq abap_false ).
 
           message e006(zslpm_data_manager) with sy-uname lv_product_id into lv_log_record_text.
 
@@ -1797,6 +2052,15 @@ class zcl_slpm_data_manager implementation.
   endmethod.
 
 
+  method zif_slpm_data_manager~is_problem_dispute_open.
+
+    me->set_slpm_problem_disputes( ip_guid ).
+
+    rp_dispute_active = mo_slpm_problem_disputes_store->is_problem_dispute_open( ).
+
+  endmethod.
+
+
   method zif_slpm_data_manager~is_status_a_customer_action.
 
     if line_exists( mt_cust_action_status_codes[ table_line = ip_status ] ).
@@ -1813,6 +2077,19 @@ class zcl_slpm_data_manager implementation.
     if line_exists( mt_final_status_codes[ table_line = ip_status ] ).
 
       rp_final_status = abap_true.
+
+    endif.
+
+  endmethod.
+
+
+  method zif_slpm_data_manager~open_problem_dispute.
+
+    if ( mo_active_configuration->get_parameter_value( 'USE_DISPUTES' ) eq 'X').
+
+      me->set_slpm_problem_disputes( ip_guid ).
+
+      mo_slpm_problem_disputes_store->open_problem_dispute( ).
 
     endif.
 
@@ -1844,130 +2121,80 @@ class zcl_slpm_data_manager implementation.
 
   endmethod.
 
-  method set_reqconfenab_status_code.
 
-    mt_reqconfenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_CONFIRM_ENABLED' ).
+  method zif_slpm_data_manager~get_problem_dispute_history.
 
-*    mt_reqconfenab_status_codes = value #(
-*
-*    ( 'E0005' )
-*
-*    ).
+    me->set_slpm_problem_disputes( ip_guid ).
+
+    rt_dispute_history = mo_slpm_problem_disputes_store->get_problem_dispute_history( ).
 
   endmethod.
 
-  method set_reqrepenab_status_codes.
+  method set_procopdisena_status_codes.
 
-    mt_reqrepenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_REPLY_ENABLED' ).
-
-*    mt_reqrepenab_status_codes = value #(
-*
-*     ( 'E0003' )
-*     ( 'E0005' )
-*     ( 'E0017' )
-*
-*    ).
+    mt_procopdisenab_status_codes = me->get_all_stco_from_storage( 'DISPUTE_OPEN' ).
 
   endmethod.
 
-  method set_requpdenab_status_codes.
+  method set_reqopdisena_status_codes.
 
-    mt_requpdenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_UPDATE_ENABLED' ).
-
-*    mt_requpdenab_status_codes = value #(
-*
-*        ( 'E0001' )
-*        ( 'E0002' )
-*        ( 'E0016' )
-*
-*    ).
+    mt_reqopdisenab_status_codes = me->get_all_stco_from_storage( 'DISPUTE_OPEN' ).
 
   endmethod.
 
-  method set_reqwitenab_status_codes.
+  method is_stco_cnt_permit_dis_ope_pro.
 
-    mt_reqwitenab_status_codes = me->get_all_stco_from_storage( 'REQUESTOR_WITHDRAW_ENABLED' ).
+    data:
+      lv_minimum_stco_count         type int4,
+      lv_real_stco_count            type int4,
+      lo_slpm_problem_history_store type ref to zcl_slpm_problem_history_store.
 
-*    mt_reqwitenab_status_codes = value #(
-*
-*        ( 'E0001' )
-*        ( 'E0002' )
-*
-*    ).
+    if ( mo_active_configuration->get_parameter_value( 'PROCESSOR_OPEN_DISPUTE_ON_ST_CO_AMOUNT_GE' ) is not initial ).
 
-  endmethod.
+      lv_minimum_stco_count = mo_active_configuration->get_parameter_value( 'PROCESSOR_OPEN_DISPUTE_ON_ST_CO_AMOUNT_GE' ).
 
-  method set_procedmodeena_status_codes.
+      lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( ip_guid ).
 
-    mt_procedmodeenab_status_codes = me->get_all_stco_from_storage( 'PROCESSOR_EDIT_MODE_ENABLED' ).
+      lv_real_stco_count = lo_slpm_problem_history_store->zif_slpm_problem_history_store~get_dist_stco_count_by_stco( ip_status_code ).
 
-*    mt_procedmodeenab_status_codes = value #(
-*
-*        ( 'E0001' )
-*        ( 'E0002' )
-*        ( 'E0003' )
-*        ( 'E0015' )
-*        ( 'E0016' )
-*        ( 'E0005' )
-*
-*    ).
+      if lv_real_stco_count ge lv_minimum_stco_count.
+
+        rp_permitted = abap_true.
+
+      endif.
+
+    endif.
 
   endmethod.
 
-  method set_procprichgena_status_codes.
+  method is_stco_cnt_permit_dis_ope_req.
 
-    mt_procprichgenab_status_codes = me->get_all_stco_from_storage( 'PROCESSOR_PRIORITY_CHANGE_ENABLED' ).
+    data:
+      lv_minimum_stco_count         type int4,
+      lv_real_stco_count            type int4,
+      lo_slpm_problem_history_store type ref to zcl_slpm_problem_history_store.
 
+    if ( mo_active_configuration->get_parameter_value( 'REQUESTER_OPEN_DISPUTE_ON_ST_CO_AMOUNT_GE' ) is not initial ).
 
-*    mt_procprichgenab_status_codes = value #(
-*
-*        ( 'E0001' )
-*        ( 'E0016' )
-*
-*     ).
+      lv_minimum_stco_count = mo_active_configuration->get_parameter_value( 'REQUESTER_OPEN_DISPUTE_ON_ST_CO_AMOUNT_GE' ).
 
-  endmethod.
+      lo_slpm_problem_history_store = new zcl_slpm_problem_history_store( ip_guid ).
 
-  method set_procretwitena_status_codes.
+      lv_real_stco_count = lo_slpm_problem_history_store->zif_slpm_problem_history_store~get_dist_stco_count_by_stco( ip_status_code ).
 
-    mt_procretwitenab_status_codes = me->get_all_stco_from_storage( 'PROCESSOR_RETURN_FROM_WITHDRAWAL_ENABLED' ).
+      if lv_real_stco_count ge lv_minimum_stco_count.
 
-*    mt_procretwitenab_status_codes = value #(
-*
-*        ( 'E0010' )
-*
-*    ).
+        rp_permitted = abap_true.
 
-  endmethod.
+      endif.
 
-
-  method zif_slpm_data_manager~get_active_configuration.
-
-    ro_active_configuration = mo_active_configuration.
+    endif.
 
   endmethod.
 
-  method get_last_slpm_mpt_hist.
+  method set_slpm_user.
 
-    select guid apptguid problemguid mpttimestamp mpttimezone mptperc update_timestamp update_timezone
-      from zslpm_mpt_hist
-      into corresponding fields of rs_slpm_mpt_hist
-     up to 1 rows
-       where problemguid = ip_guid order by update_timestamp descending.
-
-    endselect.
-
-  endmethod.
-
-  method get_stored_mpt_perc.
-
-    rp_stored_mpt_perc = me->get_last_slpm_mpt_hist( ip_guid )-mptperc.
-
-  endmethod.
-
-  method get_all_stco_from_storage.
-
-    rt_status_codes = new zcl_slpm_status_codes_storage( )->zif_slpm_status_codes_storage~get_status_codes_record( ip_status_codes_record_id )->get_all_status_codes( ).
+    mo_slpm_user ?= mo_system_user.
 
   endmethod.
 

@@ -252,7 +252,33 @@ interface zif_slpm_data_manager
 
     get_active_configuration
       returning
-        value(ro_active_configuration) type ref to zif_slpm_configuration.
+        value(ro_active_configuration) type ref to zif_slpm_configuration,
 
+    is_problem_dispute_open
+      importing
+        ip_guid                  type crmt_object_guid
+      returning
+        value(rp_dispute_active) type abap_bool,
+
+    open_problem_dispute
+      importing
+        ip_guid type crmt_object_guid
+      raising
+        zcx_slpm_configuration_exc,
+
+    close_problem_dispute
+      importing
+        ip_guid type crmt_object_guid
+      raising
+        zcx_slpm_configuration_exc,
+
+    get_problem_dispute_history
+      importing
+        ip_guid                   type crmt_object_guid
+      returning
+        value(rt_dispute_history) type zslpm_tt_dispute_hist
+      raising
+        zcx_crm_order_api_exc
+        zcx_system_user_exc.
 
 endinterface.
