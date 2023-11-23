@@ -1175,8 +1175,9 @@ lo_entity_type = model->create_entity_type( iv_entity_type_name = 'Problem' iv_d
 *Properties
 ***********************************************************************************************************************************
 
-lo_property = lo_entity_type->create_property( iv_property_name = 'IsDisputeOpen' iv_abap_fieldname = 'ISDISPUTEOPEN' ). "#EC NOTEXT
-lo_property->set_type_edm_boolean( ).
+lo_property = lo_entity_type->create_property( iv_property_name = 'DisputeStatus' iv_abap_fieldname = 'DISPUTESTATUS' ). "#EC NOTEXT
+lo_property->set_type_edm_string( ).
+lo_property->set_maxlength( iv_max_length = 1 ). "#EC NOTEXT
 lo_property->set_creatable( abap_false ).
 lo_property->set_updatable( abap_false ).
 lo_property->set_sortable( abap_false ).
@@ -4056,7 +4057,7 @@ lo_entity_set->set_filter_required( abap_false ).
 *&---------------------------------------------------------------------*
 
 
-  CONSTANTS: lc_gen_date_time TYPE timestamp VALUE '20231114131534'.                  "#EC NOTEXT
+  CONSTANTS: lc_gen_date_time TYPE timestamp VALUE '20231120082734'.                  "#EC NOTEXT
   rv_last_modified = super->get_last_modified( ).
   IF rv_last_modified LT lc_gen_date_time.
     rv_last_modified = lc_gen_date_time.

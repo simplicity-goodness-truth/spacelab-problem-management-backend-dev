@@ -354,6 +354,9 @@ class zcl_slpm_user implementation.
 
   method zif_slpm_user~is_auth_to_open_dispute_as_pro.
 
+    authority-check object 'ZPRDISOPE'
+       id 'ALLOWED' field 'X'.
+
     if sy-subrc = 0.
 
       rb_authorized = abap_true.
@@ -363,6 +366,9 @@ class zcl_slpm_user implementation.
   endmethod.
 
   method zif_slpm_user~is_auth_to_clos_dispute_as_pro.
+
+    authority-check object 'ZPRDISCLO'
+       id 'ALLOWED' field 'X'.
 
     if sy-subrc = 0.
 
@@ -374,6 +380,9 @@ class zcl_slpm_user implementation.
 
   method zif_slpm_user~is_auth_to_open_dispute_as_req.
 
+    authority-check object 'ZPRDISOPE'
+     id 'ALLOWED' field 'X'.
+
     if sy-subrc = 0.
 
       rb_authorized = abap_true.
@@ -383,6 +392,20 @@ class zcl_slpm_user implementation.
   endmethod.
 
   method zif_slpm_user~is_auth_to_clos_dispute_as_req.
+
+
+  endmethod.
+
+  method zif_slpm_user~is_auth_to_view_dispute.
+
+    authority-check object 'ZPRDISVIE'
+      id 'ALLOWED' field 'X'.
+
+    if sy-subrc = 0.
+
+      rb_authorized = abap_true.
+
+    endif.
 
 
   endmethod.

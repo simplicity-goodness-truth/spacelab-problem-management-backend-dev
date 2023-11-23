@@ -264,13 +264,21 @@ interface zif_slpm_data_manager
       importing
         ip_guid type crmt_object_guid
       raising
-        zcx_slpm_configuration_exc,
+        zcx_slpm_configuration_exc
+        zcx_slpm_data_manager_exc
+        zcx_crm_order_api_exc
+        zcx_assistant_utilities_exc
+        zcx_system_user_exc,
 
     close_problem_dispute
       importing
         ip_guid type crmt_object_guid
       raising
-        zcx_slpm_configuration_exc,
+        zcx_slpm_configuration_exc
+        zcx_slpm_data_manager_exc
+        zcx_crm_order_api_exc
+        zcx_assistant_utilities_exc
+        zcx_system_user_exc,
 
     get_problem_dispute_history
       importing
@@ -279,6 +287,12 @@ interface zif_slpm_data_manager
         value(rt_dispute_history) type zslpm_tt_dispute_hist
       raising
         zcx_crm_order_api_exc
-        zcx_system_user_exc.
+        zcx_system_user_exc,
+
+    is_there_problem_dispute_hist
+      importing
+        ip_guid                       type crmt_object_guid
+      returning
+        value(rp_dispute_hist_exists) type abap_bool.
 
 endinterface.

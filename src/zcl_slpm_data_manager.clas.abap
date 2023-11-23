@@ -487,17 +487,16 @@ class zcl_slpm_data_manager implementation.
 
     " Dispute related fields
 
-
-*    data:
-*       lo_slpm_user type ref to zif_slpm_user.
-
-   " lo_slpm_user = new zcl_slpm_user( sy-uname ).
-
     if ( mo_active_configuration->get_parameter_value( 'USE_DISPUTES' ) eq 'X').
 
       if me->zif_slpm_data_manager~is_problem_dispute_open( cs_problem-guid ) eq abap_false.
 
-        cs_problem-isdisputeopen = abap_false.
+        if ( mo_slpm_user->is_auth_to_view_dispute( ) eq abap_true ) and
+        ( me->zif_slpm_data_manager~is_there_problem_dispute_hist( cs_problem-guid ) eq abap_true ).
+
+          cs_problem-disputestatus = 'C'.
+
+        endif.
 
         cs_problem-requesteropendisputeenabled =  cond abap_bool(
                 when mo_slpm_user->is_auth_to_open_dispute_as_req( ) then
@@ -524,11 +523,13 @@ class zcl_slpm_data_manager implementation.
                             else abap_false )
                     else abap_false ) .
 
-      endif.
+      else.
 
-      if me->zif_slpm_data_manager~is_problem_dispute_open( cs_problem-guid ) eq abap_true.
+        if ( mo_slpm_user->is_auth_to_view_dispute( ) eq abap_true ).
 
-        cs_problem-isdisputeopen = abap_true.
+          cs_problem-disputestatus = 'O'.
+
+        endif.
 
         cs_problem-processorclosedisputeenabled =  cond abap_bool(
                 when mo_slpm_user->is_auth_to_clos_dispute_as_pro( ) then abap_true
@@ -2195,6 +2196,14 @@ class zcl_slpm_data_manager implementation.
   method set_slpm_user.
 
     mo_slpm_user ?= mo_system_user.
+
+  endmethod.
+
+  method zif_slpm_data_manager~is_there_problem_dispute_hist.
+
+    me->set_slpm_problem_disputes( ip_guid ).
+
+    rp_dispute_hist_exists = mo_slpm_problem_disputes_store->is_there_problem_dispute_hist( ).
 
   endmethod.
 
