@@ -2121,7 +2121,8 @@ class zcl_slpm_data_manager_proxy implementation.
       exporting
         it_filters = it_filters
         it_order = it_order
-        ip_exclude_exp_fields = ip_exclude_exp_fields ).
+        ip_exclude_exp_fields = ip_exclude_exp_fields
+        ip_search_string = ip_search_string ).
 
     endif.
 

@@ -11,7 +11,13 @@ class zcl_slpm_service_operations definition
   private section.
 
     data:
-        mo_password          type string value 'veYlJeW&C6'.
+      mo_password      type string value 'veYlJeW&C6',
+      mt_custom_tables type table of char32.
+
+    methods:
+      set_custom_tables.
+
+
 
 endclass.
 
@@ -281,6 +287,69 @@ class zcl_slpm_service_operations implementation.
       endloop.
 
     endif.
+
+  endmethod.
+
+  method zif_slpm_service_operations~display_custom_table_status.
+
+    types: begin of ty_custom_table_stat,
+             table_name    type char32,
+             records_count type int4,
+           end of ty_custom_table_stat.
+
+    data: lt_custom_table_stat type table of ty_custom_table_stat,
+          wa_custom_table_stat type ty_custom_table_stat.
+
+    me->set_custom_tables( ).
+
+    if mt_custom_tables is not initial.
+
+      loop at mt_custom_tables assigning field-symbol(<fs_custom_table>).
+
+        clear wa_custom_table_stat.
+
+        wa_custom_table_stat-table_name = <fs_custom_table>.
+        select count(*) from (<fs_custom_table>) into wa_custom_table_stat-records_count.
+
+        append wa_custom_table_stat to lt_custom_table_stat.
+
+      endloop.
+
+      loop at lt_custom_table_stat assigning field-symbol(<fs_custom_table_stat>).
+
+        write:  |Таблица | && |{ <fs_custom_table_stat>-table_name }| && | содержит | &&
+               |{ <fs_custom_table_stat>-records_count }| && | записей |.
+
+        new-line.
+
+      endloop.
+
+    endif.
+
+  endmethod.
+
+  method set_custom_tables.
+
+    mt_custom_tables = value #(
+      ( 'ZCRMO_ATT_TRASH' )
+      ( 'ZSLPM_ATT_VSBL' )
+      ( 'ZCRMO_SLA_ESCLOG' )
+      ( 'ZSLPM_IRT_HIST' )
+      ( 'ZSLPM_MPT_HIST' )
+      ( 'ZSLPM_PR_HIS_HDR' )
+      ( 'ZSLPM_PR_HIS_REC' )
+      ( 'ZSLPM_PR_DISPUTE' )
+      ( 'ZSLPM_SETUP' )
+      ( 'ZCRMO_AUTO_STAT' )
+      ( 'ZCRMO_SLA_ESCAL' )
+      ( 'ZSLPM_CUST_PROD' )
+      ( 'ZSLPM_CUST_SYST' )
+      ( 'ZSLPM_EMAIL_RULE' )
+      ( 'ZSLPM_HTTP_HDR' )
+      ( 'ZSLPM_PROD_ATTR' )
+      ( 'ZSLPM_PR_FLD_TRS' )
+      ( 'ZSLPM_STAT_EMAIL' )
+    ).
 
   endmethod.
 

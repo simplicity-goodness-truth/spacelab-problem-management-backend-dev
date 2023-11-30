@@ -127,9 +127,12 @@ class zcl_slpm_dpc_ext implementation.
 
     data: lo_slpm_data_provider type ref to zif_slpm_data_manager,
           lv_exception_text     type bapi_msg,
-          lt_set_filters        type /iwbep/t_mgw_select_option.
+          lt_set_filters        type /iwbep/t_mgw_select_option,
+          lv_search_string      type string.
 
     lt_set_filters = io_tech_request_context->get_filter( )->get_filter_select_options( ).
+
+    lv_search_string = io_tech_request_context->get_search_string( ).
 
     try.
 
@@ -142,7 +145,8 @@ class zcl_slpm_dpc_ext implementation.
             exporting
             it_filters = lt_set_filters
             it_order = it_order
-            ip_exclude_exp_fields = abap_true ).
+            ip_exclude_exp_fields = abap_true
+            ip_search_string = lv_search_string ).
 
       catch zcx_slpm_odata_exc zcx_slpm_data_manager_exc zcx_crm_order_api_exc
         zcx_assistant_utilities_exc zcx_slpm_configuration_exc
@@ -1316,9 +1320,9 @@ class zcl_slpm_dpc_ext implementation.
   method /iwbep/if_mgw_appl_srv_runtime~execute_action.
 
     data:
-      lv_function_name             type /iwbep/mgw_tech_name,
-      lv_guid                      type crmt_object_guid,
-      lo_slpm_data_provider        type ref to zif_slpm_data_manager.
+      lv_function_name      type /iwbep/mgw_tech_name,
+      lv_guid               type crmt_object_guid,
+      lo_slpm_data_provider type ref to zif_slpm_data_manager.
 
     try.
 
@@ -1332,7 +1336,7 @@ class zcl_slpm_dpc_ext implementation.
 
               lo_slpm_data_provider = new zcl_slpm_data_manager_proxy(  ).
 
-               me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
+              me->is_valid_slpm_odata_request( lo_slpm_data_provider ).
 
             endif.
 
@@ -1361,7 +1365,7 @@ class zcl_slpm_dpc_ext implementation.
 
   endmethod.
 
-method disputehistoryse_get_entityset.
+  method disputehistoryse_get_entityset.
 
 
     data: lv_guid               type crmt_object_guid,
@@ -1393,6 +1397,6 @@ method disputehistoryse_get_entityset.
     endif.
 
 
-endmethod.
+  endmethod.
 
 endclass.

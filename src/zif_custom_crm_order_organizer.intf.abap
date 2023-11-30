@@ -14,6 +14,15 @@ interface zif_custom_crm_order_organizer
         !ir_entity       type ref to data
         !it_order        type /iwbep/t_mgw_sorting_order
       returning
-        value(er_entity) type ref to data.
+        value(er_entity) type ref to data,
+
+    is_order_matching_to_search
+      importing
+        !ir_entity               type ref to data
+        !ip_search_string        type string
+      changing
+        value(cp_include_record) type ac_bool
+      raising
+        zcx_crm_order_api_exc.
 
 endinterface.

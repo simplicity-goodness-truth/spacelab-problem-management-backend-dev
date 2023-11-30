@@ -1903,6 +1903,29 @@ class zcl_slpm_data_manager implementation.
 
         endif.
 
+        " Search processing
+
+        if ip_search_string is not initial.
+
+          lv_include_record = abap_true.
+
+          get reference of ls_result into lr_entity.
+
+          mo_slpm_problem_api->zif_custom_crm_order_organizer~is_order_matching_to_search(
+              exporting
+                          ir_entity         = lr_entity
+                          ip_search_string    = ip_search_string
+                          changing
+                            cp_include_record = lv_include_record
+                      ).
+
+          " Executing search
+
+          if lv_include_record eq abap_false.
+            continue.
+          endif.
+
+        endif.
 
 
         " User can only see the companies for which he/she is authorized
